@@ -1,0 +1,53 @@
+import { 
+  Menu, 
+  X, 
+  Sun, 
+  Moon, 
+  LayoutDashboard, 
+  Users, 
+  Settings, 
+  FileText, 
+  BarChart3, 
+  Bell, 
+  Search, 
+  LogOut, 
+  ChevronDown,
+  TrendingUp,
+  TrendingDown,
+  DollarSign,
+  ShoppingCart,
+  UserCheck,
+  Activity,
+  Calendar,
+  Mail,
+  HelpCircle,
+  Home
+} from 'lucide-vue-next'
+
+export const icons = {
+  Menu,
+  X,
+  Sun,
+  Moon,
+  LayoutDashboard,
+  Users,
+  Settings,
+  FileText,
+  BarChart3,
+  Bell,
+  Search,
+  LogOut,
+  ChevronDown,
+  TrendingUp,
+  TrendingDown,
+  DollarSign,
+  ShoppingCart,
+  UserCheck,
+  Activity,
+  Calendar,
+  Mail,
+  HelpCircle,
+  Home
+}
+
+export type IconName = keyof typeof icons
