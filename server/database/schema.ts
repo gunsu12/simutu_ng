@@ -72,6 +72,7 @@ export const sessions = pgTable('sessions', {
 
 export const indicatorCategories = pgTable('indicator_categories', {
   id: uuid('id').defaultRandom().primaryKey(),
+  siteId: uuid('site_id').notNull().references(() => sites.id, { onDelete: 'cascade' }),
   name: text('name').notNull(),
   description: text('description'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
@@ -80,6 +81,7 @@ export const indicatorCategories = pgTable('indicator_categories', {
 
 export const indicators = pgTable('indicators', {
   id: uuid('id').defaultRandom().primaryKey(),
+  siteId: uuid('site_id').notNull().references(() => sites.id, { onDelete: 'cascade' }),
   indicatorCategoryId: uuid('indicator_category_id').notNull().references(() => indicatorCategories.id, { onDelete: 'cascade' }),
   code: text('code').notNull().unique(),
   judul: text('judul').notNull(),

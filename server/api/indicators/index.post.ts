@@ -3,8 +3,19 @@ import { indicators } from '../../database/schema'
 
 export default defineEventHandler(async (event) => {
   try {
+    const user = event.context.user
+    
+    if (!user) {
+      setResponseStatus(event, 401)
+      return {
+        success: false,
+        message: 'Unauthorized',
+      }
+    }
+
     const body = await readBody(event)
     const {
+      siteId,
       indicatorCategoryId,
       code,
       judul,
@@ -30,9 +41,35 @@ export default defineEventHandler(async (event) => {
       }
     }
 
+    // Determine which siteId to use
+    let targetSiteId: string
+    
+    if (user.role === 'admin') {
+      // Admin can specify siteId or use their own
+      targetSiteId = siteId || user.siteId
+      if (!targetSiteId) {
+        setResponseStatus(event, 400)
+        return {
+          success: false,
+          message: 'Site ID is required',
+        }
+      }
+    } else {
+      // Regular users can only create for their own site
+      if (!user.siteId) {
+        setResponseStatus(event, 403)
+        return {
+          success: false,
+          message: 'User must be assigned to a site',
+        }
+      }
+      targetSiteId = user.siteId
+    }
+
     const [indicator] = await db
       .insert(indicators)
       .values({
+        siteId: targetSiteId,
         indicatorCategoryId: indicatorCategoryId.trim(),
         code: code.trim(),
         judul: judul.trim(),

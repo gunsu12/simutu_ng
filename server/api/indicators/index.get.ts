@@ -1,15 +1,50 @@
 import { db } from '../../database'
 import { indicators, indicatorCategories } from '../../database/schema'
-import { asc, eq } from 'drizzle-orm'
+import { asc, eq, and } from 'drizzle-orm'
 
 export default defineEventHandler(async (event) => {
   try {
+    const user = event.context.user
+    
+    if (!user) {
+      setResponseStatus(event, 401)
+      return {
+        success: false,
+        message: 'Unauthorized',
+      }
+    }
+
     const query = getQuery(event)
     const categoryId = query.categoryId as string | undefined
+    const siteIdFilter = query.siteId as string | undefined
 
-    let indicatorsQuery = db
+    const whereConditions: any[] = []
+    
+    // Admin can see all sites or filter by specific site
+    // Regular users only see their own site
+    if (user.role === 'admin') {
+      if (siteIdFilter) {
+        whereConditions.push(eq(indicators.siteId, siteIdFilter))
+      }
+    } else {
+      if (!user.siteId) {
+        setResponseStatus(event, 403)
+        return {
+          success: false,
+          message: 'User must be assigned to a site',
+        }
+      }
+      whereConditions.push(eq(indicators.siteId, user.siteId))
+    }
+    
+    if (categoryId) {
+      whereConditions.push(eq(indicators.indicatorCategoryId, categoryId))
+    }
+
+    let queryBuilder = db
       .select({
         id: indicators.id,
+        siteId: indicators.siteId,
         indicatorCategoryId: indicators.indicatorCategoryId,
         code: indicators.code,
         judul: indicators.judul,
@@ -32,11 +67,11 @@ export default defineEventHandler(async (event) => {
       .from(indicators)
       .leftJoin(indicatorCategories, eq(indicators.indicatorCategoryId, indicatorCategories.id))
 
-    if (categoryId) {
-      indicatorsQuery = indicatorsQuery.where(eq(indicators.indicatorCategoryId, categoryId))
+    if (whereConditions.length > 0) {
+      queryBuilder = queryBuilder.where(and(...whereConditions))
     }
 
-    const result = await indicatorsQuery.orderBy(asc(indicators.code))
+    const result = await queryBuilder.orderBy(asc(indicators.code))
 
     return {
       success: true,

@@ -11,6 +11,11 @@ interface IndicatorCategory {
   name: string
 }
 
+interface Site {
+  id: string
+  name: string
+}
+
 interface Indicator {
   id: string
   indicatorCategoryId: string
@@ -33,25 +38,11 @@ interface Indicator {
   updatedAt: string
 }
 
-// Use useLazyFetch for non-blocking data fetching
-const { data: indicatorsData, pending: loadingIndicators, error: indicatorsError, refresh: refreshIndicators } = useLazyFetch<{
-  success: boolean
-  data: Indicator[]
-}>('/api/indicators', {
-  default: () => ({ success: false, data: [] })
-})
+const { user } = useAuth()
+const isAdmin = computed(() => user.value?.role === 'admin')
+const selectedSiteId = ref('')
 
-const { data: categoriesData, pending: loadingCategories } = useLazyFetch<{
-  success: boolean
-  data: IndicatorCategory[]
-}>('/api/indicator-categories', {
-  default: () => ({ success: false, data: [] })
-})
-
-const indicators = computed(() => indicatorsData.value?.data || [])
-const categories = computed(() => categoriesData.value?.data || [])
-const loading = computed(() => loadingIndicators.value || loadingCategories.value)
-
+// Declare refs first
 const searchQuery = ref('')
 const filterCategoryId = ref('')
 const showModal = ref(false)
@@ -60,9 +51,13 @@ const isEditing = ref(false)
 const currentIndicator = ref<Indicator | null>(null)
 const saving = ref(false)
 const errorMessage = ref('')
+const uploadingFile = ref(false)
+const selectedFile = ref<File | null>(null)
+const uploadProgress = ref(0)
 
 // Form data with all fields
 const form = ref({
+  siteId: '',
   indicatorCategoryId: '',
   code: '',
   judul: '',
@@ -80,8 +75,53 @@ const form = ref({
   documentFile: ''
 })
 
+// Fetch sites for admin filter
+const { data: sitesData } = useLazyFetch<{
+  success: boolean
+  data: Site[]
+}>('/api/sites', {
+  default: () => ({ success: false, data: [] })
+})
+
+const sites = computed(() => sitesData.value?.data || [])
+
+// Use useLazyFetch for non-blocking data fetching
+const { data: indicatorsData, pending: loadingIndicators, error: indicatorsError, refresh: refreshIndicators } = useLazyFetch<{
+  success: boolean
+  data: Indicator[]
+}>(() => {
+  const params = new URLSearchParams()
+  if (isAdmin.value && selectedSiteId.value) {
+    params.append('siteId', selectedSiteId.value)
+  }
+  return `/api/indicators?${params.toString()}`
+}, {
+  default: () => ({ success: false, data: [] }),
+  watch: [selectedSiteId]
+})
+
+const { data: categoriesData, pending: loadingCategories } = useLazyFetch<{
+  success: boolean
+  data: IndicatorCategory[]
+}>(() => {
+  const params = new URLSearchParams()
+  // Filter categories by selected site when admin is creating new indicator
+  if (isAdmin.value && form.value.siteId && showModal.value && !isEditing.value) {
+    params.append('siteId', form.value.siteId)
+  }
+  return `/api/indicator-categories?${params.toString()}`
+}, {
+  default: () => ({ success: false, data: [] }),
+  watch: [() => form.value.siteId, showModal, isEditing]
+})
+
+const indicators = computed(() => indicatorsData.value?.data || [])
+const categories = computed(() => categoriesData.value?.data || [])
+const loading = computed(() => loadingIndicators.value || loadingCategories.value)
+
 const resetForm = () => {
   form.value = {
+    siteId: isAdmin.value ? '' : (user.value?.siteId || ''),
     indicatorCategoryId: '',
     code: '',
     judul: '',
@@ -99,6 +139,13 @@ const resetForm = () => {
     documentFile: ''
   }
 }
+
+// Watch for site changes and reset category selection
+watch(() => form.value.siteId, () => {
+  if (showModal.value && !isEditing.value) {
+    form.value.indicatorCategoryId = ''
+  }
+})
 
 const filteredIndicators = computed(() => {
   let result = indicators.value
@@ -133,6 +180,7 @@ const openEditModal = (indicator: Indicator) => {
   isEditing.value = true
   currentIndicator.value = indicator
   form.value = {
+    siteId: isAdmin.value ? '' : (user.value?.siteId || ''),
     indicatorCategoryId: indicator.indicatorCategoryId,
     code: indicator.code,
     judul: indicator.judul,
@@ -162,6 +210,78 @@ const closeModal = () => {
   showModal.value = false
   resetForm()
   errorMessage.value = ''
+  selectedFile.value = null
+  uploadProgress.value = 0
+}
+
+const handleFileSelect = (event: Event) => {
+  const target = event.target as HTMLInputElement
+  if (target.files && target.files.length > 0 && target.files[0]) {
+    selectedFile.value = target.files[0]
+  }
+}
+
+const uploadDocument = async () => {
+  if (!selectedFile.value) {
+    errorMessage.value = 'Please select a file first'
+    return
+  }
+
+  uploadingFile.value = true
+  uploadProgress.value = 0
+  errorMessage.value = ''
+
+  try {
+    const formData = new FormData()
+    formData.append('file', selectedFile.value)
+    formData.append('folder', 'indicators/documents')
+
+    // Use XMLHttpRequest to track upload progress
+    const xhr = new XMLHttpRequest()
+    
+    xhr.upload.addEventListener('progress', (e) => {
+      if (e.lengthComputable) {
+        uploadProgress.value = Math.round((e.loaded / e.total) * 100)
+      }
+    })
+
+    const uploadPromise = new Promise<string>((resolve, reject) => {
+      xhr.addEventListener('load', () => {
+        if (xhr.status === 200) {
+          const response = JSON.parse(xhr.responseText)
+          if (response.success) {
+            resolve(response.url)
+          } else {
+            reject(new Error(response.message || 'Upload failed'))
+          }
+        } else {
+          reject(new Error('Upload failed'))
+        }
+      })
+
+      xhr.addEventListener('error', () => {
+        reject(new Error('Upload failed'))
+      })
+
+      xhr.open('POST', '/api/upload')
+      xhr.send(formData)
+    })
+
+    const fileUrl = await uploadPromise
+    form.value.documentFile = fileUrl
+    selectedFile.value = null
+    uploadProgress.value = 0
+  } catch (err: any) {
+    console.error('Upload error:', err)
+    errorMessage.value = err.message || 'Failed to upload file'
+  } finally {
+    uploadingFile.value = false
+  }
+}
+
+const removeDocument = () => {
+  form.value.documentFile = ''
+  selectedFile.value = null
 }
 
 const closeDetailModal = () => {
@@ -172,6 +292,11 @@ const closeDetailModal = () => {
 const saveIndicator = async () => {
   if (!form.value.indicatorCategoryId || !form.value.code.trim() || !form.value.judul.trim()) {
     errorMessage.value = 'Category, Code, and Judul are required'
+    return
+  }
+
+  if (isAdmin.value && !form.value.siteId && !isEditing.value) {
+    errorMessage.value = 'Site is required'
     return
   }
 
@@ -252,9 +377,9 @@ const formatTarget = (indicator: Indicator) => {
           <RefreshCw class="w-4 h-4" :class="{ 'animate-spin': loading }" />
           Refresh
         </button>
-        <button @click="openCreateModal" class="btn btn-primary gap-2">
+        <button type="button" @click="openCreateModal" class="btn btn-primary gap-2">
           <Plus class="w-4 h-4" />
-          Add Indicator
+          Tambah Indikator
         </button>
       </div>
     </div>
@@ -268,7 +393,7 @@ const formatTarget = (indicator: Indicator) => {
     <!-- Filters -->
     <div class="card bg-base-100 shadow-sm">
       <div class="card-body p-4">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div class="flex items-center gap-2">
             <Search class="w-5 h-5 text-base-content/50" />
             <input
@@ -284,6 +409,14 @@ const formatTarget = (indicator: Indicator) => {
               <option value="">All Categories</option>
               <option v-for="cat in categories" :key="cat.id" :value="cat.id">
                 {{ cat.name }}
+              </option>
+            </select>
+          </div>
+          <div v-if="isAdmin" class="flex items-center gap-2">
+            <select v-model="selectedSiteId" class="select select-sm select-bordered flex-1">
+              <option value="">Semua Site</option>
+              <option v-for="site in sites" :key="site.id" :value="site.id">
+                {{ site.name }}
               </option>
             </select>
           </div>
@@ -364,10 +497,11 @@ const formatTarget = (indicator: Indicator) => {
 
     <!-- Create/Edit Modal -->
     <Teleport to="body">
-      <dialog :class="['modal', { 'modal-open': showModal }]">
+      <dialog :class="['modal', { 'modal-open': showModal }]" :open="showModal">
         <div class="modal-box max-w-4xl max-h-[90vh] overflow-y-auto">
+          <button type="button" class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" @click="closeModal">✕</button>
           <h3 class="font-bold text-lg mb-4">
-            {{ isEditing ? 'Edit Indicator' : 'Add New Indicator' }}
+            {{ isEditing ? 'Edit Indikator' : 'Tambah Indikator' }}
           </h3>
 
           <!-- Error Message -->
@@ -376,6 +510,19 @@ const formatTarget = (indicator: Indicator) => {
           </div>
 
           <form @submit.prevent="saveIndicator" class="space-y-4">
+            <!-- Site Selection for Admin -->
+            <div v-if="isAdmin && !isEditing" class="form-control">
+              <label class="label">
+                <span class="label-text">Site <span class="text-error">*</span></span>
+              </label>
+              <select v-model="form.siteId" class="select select-bordered" required :disabled="saving">
+                <option value="">Pilih Site</option>
+                <option v-for="site in sites" :key="site.id" :value="site.id">
+                  {{ site.name }}
+                </option>
+              </select>
+            </div>
+
             <!-- Basic Info -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div class="form-control">
@@ -565,38 +712,82 @@ const formatTarget = (indicator: Indicator) => {
 
             <div class="form-control">
               <label class="label">
-                <span class="label-text">Document File URL</span>
+                <span class="label-text">Document File</span>
               </label>
-              <input
-                v-model="form.documentFile"
-                type="text"
-                placeholder="https://example.com/document.pdf"
-                class="input input-bordered"
-                :disabled="saving"
-              />
+              
+              <!-- Show current file if exists -->
+              <div v-if="form.documentFile" class="mb-3 p-3 bg-base-200 rounded-lg flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <FileText class="w-5 h-5 text-primary" />
+                  <a :href="form.documentFile" target="_blank" class="link link-primary text-sm">
+                    View current document
+                  </a>
+                </div>
+                <button
+                  type="button"
+                  @click="removeDocument"
+                  class="btn btn-ghost btn-sm btn-circle text-error"
+                  :disabled="saving || uploadingFile"
+                >
+                  <Trash2 class="w-4 h-4" />
+                </button>
+              </div>
+
+              <!-- File upload section -->
+              <div class="flex gap-2">
+                <input
+                  type="file"
+                  @change="handleFileSelect"
+                  accept=".pdf,.doc,.docx,.xls,.xlsx"
+                  class="file-input file-input-bordered flex-1"
+                  :disabled="saving || uploadingFile"
+                />
+                <button
+                  type="button"
+                  @click="uploadDocument"
+                  class="btn btn-primary"
+                  :disabled="!selectedFile || saving || uploadingFile"
+                >
+                  <Upload class="w-4 h-4" />
+                  {{ uploadingFile ? 'Uploading...' : 'Upload' }}
+                </button>
+              </div>
+
+              <!-- Upload progress -->
+              <div v-if="uploadingFile" class="mt-2">
+                <div class="flex items-center justify-between text-sm mb-1">
+                  <span>Uploading...</span>
+                  <span>{{ uploadProgress }}%</span>
+                </div>
+                <progress class="progress progress-primary w-full" :value="uploadProgress" max="100"></progress>
+              </div>
+
               <label class="label">
-                <span class="label-text-alt">Enter the URL of the uploaded document</span>
+                <span class="label-text-alt">Upload PDF, DOC, DOCX, XLS, or XLSX files</span>
               </label>
             </div>
 
             <div class="modal-action">
-              <button type="button" @click="closeModal" class="btn" :disabled="saving">Cancel</button>
+              <button type="button" @click="closeModal" class="btn" :disabled="saving">Batal</button>
               <button type="submit" class="btn btn-primary" :disabled="saving">
                 <span v-if="saving" class="loading loading-spinner loading-sm"></span>
-                <span v-else>{{ isEditing ? 'Update' : 'Create' }}</span>
+                <span v-else>{{ isEditing ? 'Update' : 'Simpan' }}</span>
               </button>
             </div>
           </form>
         </div>
-        <div class="modal-backdrop bg-black/50" @click="closeModal"></div>
+        <form method="dialog" class="modal-backdrop">
+          <button type="button" @click="closeModal">close</button>
+        </form>
       </dialog>
     </Teleport>
 
     <!-- Detail Modal -->
     <Teleport to="body">
-      <dialog :class="['modal', { 'modal-open': showDetailModal }]">
+      <dialog :class="['modal', { 'modal-open': showDetailModal }]" :open="showDetailModal">
         <div class="modal-box max-w-3xl">
-          <h3 class="font-bold text-lg mb-4">Indicator Details</h3>
+          <button type="button" class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" @click="closeDetailModal">✕</button>
+          <h3 class="font-bold text-lg mb-4">Detail Indikator</h3>
           
           <div v-if="currentIndicator" class="space-y-4">
             <div class="grid grid-cols-2 gap-4">
@@ -672,14 +863,16 @@ const formatTarget = (indicator: Indicator) => {
           </div>
 
           <div class="modal-action">
-            <button @click="closeDetailModal" class="btn">Close</button>
-            <button @click="closeDetailModal(); openEditModal(currentIndicator!)" class="btn btn-primary">
+            <button type="button" @click="closeDetailModal" class="btn">Tutup</button>
+            <button type="button" @click="closeDetailModal(); openEditModal(currentIndicator!)" class="btn btn-primary">
               <Edit class="w-4 h-4" />
               Edit
             </button>
           </div>
         </div>
-        <div class="modal-backdrop bg-black/50" @click="closeDetailModal"></div>
+        <form method="dialog" class="modal-backdrop">
+          <button type="button" @click="closeDetailModal">close</button>
+        </form>
       </dialog>
     </Teleport>
   </div>

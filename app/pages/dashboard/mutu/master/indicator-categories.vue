@@ -14,12 +14,38 @@ interface IndicatorCategory {
   updatedAt: string
 }
 
+interface Site {
+  id: string
+  name: string
+}
+
+const { user } = useAuth()
+const isAdmin = computed(() => user.value?.role === 'admin')
+const selectedSiteId = ref('')
+
+// Fetch sites for admin filter
+const { data: sitesData } = useLazyFetch<{
+  success: boolean
+  data: Site[]
+}>('/api/sites', {
+  default: () => ({ success: false, data: [] })
+})
+
+const sites = computed(() => sitesData.value?.data || [])
+
 // Use useLazyFetch for better performance - non-blocking
 const { data: categoriesData, pending: loading, error, refresh } = useLazyFetch<{
   success: boolean
   data: IndicatorCategory[]
-}>('/api/indicator-categories', {
-  default: () => ({ success: false, data: [] })
+}>(() => {
+  const params = new URLSearchParams()
+  if (isAdmin.value && selectedSiteId.value) {
+    params.append('siteId', selectedSiteId.value)
+  }
+  return `/api/indicator-categories?${params.toString()}`
+}, {
+  default: () => ({ success: false, data: [] }),
+  watch: [selectedSiteId]
 })
 
 const categories = computed(() => categoriesData.value?.data || [])
@@ -33,6 +59,7 @@ const errorMessage = ref('')
 
 // Form data
 const form = ref({
+  siteId: '',
   name: '',
   description: ''
 })
@@ -51,6 +78,7 @@ const openCreateModal = () => {
   isEditing.value = false
   currentCategory.value = null
   form.value = {
+    siteId: isAdmin.value ? '' : (user.value?.siteId || ''),
     name: '',
     description: ''
   }
@@ -62,6 +90,7 @@ const openEditModal = (category: IndicatorCategory) => {
   isEditing.value = true
   currentCategory.value = category
   form.value = {
+    siteId: isAdmin.value ? '' : (user.value?.siteId || ''),
     name: category.name,
     description: category.description || ''
   }
@@ -72,6 +101,7 @@ const openEditModal = (category: IndicatorCategory) => {
 const closeModal = () => {
   showModal.value = false
   form.value = {
+    siteId: '',
     name: '',
     description: ''
   }
@@ -81,6 +111,11 @@ const closeModal = () => {
 const saveCategory = async () => {
   if (!form.value.name.trim()) {
     errorMessage.value = 'Name is required'
+    return
+  }
+
+  if (isAdmin.value && !form.value.siteId && !isEditing.value) {
+    errorMessage.value = 'Site is required'
     return
   }
 
@@ -142,16 +177,16 @@ const deleteCategory = async (id: string) => {
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
       <div>
         <h1 class="text-2xl font-bold text-base-content">Indicator Categories</h1>
-        <p class="text-base-content/60 mt-1">Manage quality indicator categories</p>
+        <p class="text-base-content/60 mt-1">Kelola kategori indikator mutu</p>
       </div>
       <div class="flex gap-2">
-        <button @click="refresh()" class="btn btn-ghost btn-sm gap-2" :disabled="loading">
+        <button type="button" @click="refresh()" class="btn btn-ghost btn-sm gap-2" :disabled="loading">
           <RefreshCw class="w-4 h-4" :class="{ 'animate-spin': loading }" />
           Refresh
         </button>
-        <button @click="openCreateModal" class="btn btn-primary gap-2">
+        <button type="button" @click="openCreateModal" class="btn btn-primary gap-2">
           <Plus class="w-4 h-4" />
-          Add Category
+          Tambah Kategori
         </button>
       </div>
     </div>
@@ -165,14 +200,24 @@ const deleteCategory = async (id: string) => {
     <!-- Search -->
     <div class="card bg-base-100 shadow-sm">
       <div class="card-body p-4">
-        <div class="flex items-center gap-2">
-          <Search class="w-5 h-5 text-base-content/50" />
-          <input
-            v-model="searchQuery"
-            type="text"
-            placeholder="Search categories..."
-            class="input input-sm input-bordered flex-1"
-          />
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="flex items-center gap-2">
+            <Search class="w-5 h-5 text-base-content/50" />
+            <input
+              v-model="searchQuery"
+              type="text"
+              placeholder="Search categories..."
+              class="input input-sm input-bordered flex-1"
+            />
+          </div>
+          <div v-if="isAdmin" class="flex items-center gap-2">
+            <select v-model="selectedSiteId" class="select select-sm select-bordered flex-1">
+              <option value="">Semua Site</option>
+              <option v-for="site in sites" :key="site.id" :value="site.id">
+                {{ site.name }}
+              </option>
+            </select>
+          </div>
         </div>
       </div>
     </div>
@@ -236,11 +281,12 @@ const deleteCategory = async (id: string) => {
     </div>
 
     <!-- Modal -->
-    <Teleport to="body">
-      <dialog :class="['modal', { 'modal-open': showModal }]">
+    <ClientOnly>
+      <dialog :class="['modal', { 'modal-open': showModal }]" :open="showModal">
         <div class="modal-box">
+          <button type="button" class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" @click="closeModal">✕</button>
           <h3 class="font-bold text-lg mb-4">
-            {{ isEditing ? 'Edit Category' : 'Add New Category' }}
+            {{ isEditing ? 'Edit Kategori' : 'Tambah Kategori' }}
           </h3>
 
           <!-- Error Message -->
@@ -249,6 +295,23 @@ const deleteCategory = async (id: string) => {
           </div>
 
           <form @submit.prevent="saveCategory" class="space-y-4">
+            <div v-if="isAdmin && !isEditing" class="form-control">
+              <label class="label">
+                <span class="label-text">Site <span class="text-error">*</span></span>
+              </label>
+              <select
+                v-model="form.siteId"
+                class="select select-bordered"
+                required
+                :disabled="saving"
+              >
+                <option value="">Pilih Site</option>
+                <option v-for="site in sites" :key="site.id" :value="site.id">
+                  {{ site.name }}
+                </option>
+              </select>
+            </div>
+
             <div class="form-control">
               <label class="label">
                 <span class="label-text">Name <span class="text-error">*</span></span>
@@ -276,16 +339,18 @@ const deleteCategory = async (id: string) => {
             </div>
 
             <div class="modal-action">
-              <button type="button" @click="closeModal" class="btn" :disabled="saving">Cancel</button>
+              <button type="button" @click="closeModal" class="btn" :disabled="saving">Batal</button>
               <button type="submit" class="btn btn-primary" :disabled="saving">
                 <span v-if="saving" class="loading loading-spinner loading-sm"></span>
-                <span v-else>{{ isEditing ? 'Update' : 'Create' }}</span>
+                <span v-else>{{ isEditing ? 'Update' : 'Simpan' }}</span>
               </button>
             </div>
           </form>
         </div>
-        <div class="modal-backdrop bg-black/50" @click="closeModal"></div>
+        <form method="dialog" class="modal-backdrop">
+          <button type="button" @click="closeModal">close</button>
+        </form>
       </dialog>
-    </Teleport>
+    </ClientOnly>
   </div>
 </template>
