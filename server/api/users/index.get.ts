@@ -1,6 +1,6 @@
 import { db } from '../../database'
 import { users, employees, sites } from '../../database/schema'
-import { eq } from 'drizzle-orm'
+import { eq, isNull } from 'drizzle-orm'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -21,6 +21,7 @@ export default defineEventHandler(async (event) => {
       .from(users)
       .leftJoin(employees, eq(users.employeeId, employees.id))
       .leftJoin(sites, eq(users.siteId, sites.id))
+      .where(isNull(users.deletedAt))
       .orderBy(users.createdAt)
 
     return {

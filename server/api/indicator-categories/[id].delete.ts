@@ -14,7 +14,8 @@ export default defineEventHandler(async (event) => {
     }
 
     await db
-      .delete(indicatorCategories)
+      .update(indicatorCategories)
+      .set({ deletedAt: new Date() })
       .where(eq(indicatorCategories.id, id))
 
     return {

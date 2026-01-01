@@ -1,6 +1,6 @@
 import { db } from '../../database'
 import { indicators, indicatorCategories } from '../../database/schema'
-import { asc, eq, and } from 'drizzle-orm'
+import { asc, eq, and, isNull } from 'drizzle-orm'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -18,7 +18,9 @@ export default defineEventHandler(async (event) => {
     const categoryId = query.categoryId as string | undefined
     const siteIdFilter = query.siteId as string | undefined
 
-    const whereConditions: any[] = []
+    const whereConditions: any[] = [
+      isNull(indicators.deletedAt) // Filter out soft-deleted records
+    ]
     
     // Admin can see all sites or filter by specific site
     // Regular users only see their own site
@@ -60,6 +62,7 @@ export default defineEventHandler(async (event) => {
         targetIsZero: indicators.targetIsZero,
         targetCalculationFormula: indicators.targetCalculationFormula,
         documentFile: indicators.documentFile,
+        entryFrequency: indicators.entryFrequency,
         isActive: indicators.isActive,
         createdAt: indicators.createdAt,
         updatedAt: indicators.updatedAt,

@@ -13,6 +13,7 @@ export const sites = pgTable('sites', {
   siteLogo: text('site_logo'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  deletedAt: timestamp('deleted_at'),
 })
 
 export const divisions = pgTable('divisions', {
@@ -23,6 +24,7 @@ export const divisions = pgTable('divisions', {
   description: text('description'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  deletedAt: timestamp('deleted_at'),
 })
 
 export const employees = pgTable('employees', {
@@ -36,6 +38,7 @@ export const employees = pgTable('employees', {
   picture: text('picture'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  deletedAt: timestamp('deleted_at'),
 })
 
 export const units = pgTable('units', {
@@ -49,6 +52,7 @@ export const units = pgTable('units', {
   headOfUnit: uuid('head_of_unit').references(() => employees.id, { onDelete: 'set null' }),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  deletedAt: timestamp('deleted_at'),
 })
 
 export const users = pgTable('users', {
@@ -62,6 +66,7 @@ export const users = pgTable('users', {
   siteId: uuid('site_id').references(() => sites.id, { onDelete: 'set null' }),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  deletedAt: timestamp('deleted_at'),
 })
 
 export const sessions = pgTable('sessions', {
@@ -77,6 +82,7 @@ export const indicatorCategories = pgTable('indicator_categories', {
   description: text('description'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  deletedAt: timestamp('deleted_at'),
 })
 
 export const indicators = pgTable('indicators', {
@@ -97,9 +103,11 @@ export const indicators = pgTable('indicators', {
   targetIsZero: boolean('target_is_zero').default(false),
   targetCalculationFormula: text('target_calculation_formula'), // "N/D", "N-D", "(N/D)*100"
   documentFile: text('document_file'),
+  entryFrequency: text('entry_frequency').default('monthly').notNull(), // "daily" or "monthly"
   isActive: boolean('is_active').default(true).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  deletedAt: timestamp('deleted_at'),
 })
 
 export const indicatorUnits = pgTable('indicator_units', {

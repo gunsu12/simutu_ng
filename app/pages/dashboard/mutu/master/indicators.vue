@@ -49,6 +49,7 @@ interface Indicator {
   targetIsZero: boolean
   targetCalculationFormula: string | null
   documentFile: string | null
+  entryFrequency: string
   isActive: boolean
   createdAt: string
   updatedAt: string
@@ -94,7 +95,8 @@ const form = ref({
   targetKeterangan: '',
   targetIsZero: false,
   targetCalculationFormula: '',
-  documentFile: ''
+  documentFile: '',
+  entryFrequency: 'monthly'
 })
 
 // Fetch sites for admin filter
@@ -158,7 +160,8 @@ const resetForm = () => {
     targetKeterangan: '',
     targetIsZero: false,
     targetCalculationFormula: '',
-    documentFile: ''
+    documentFile: '',
+    entryFrequency: 'monthly'
   }
 }
 
@@ -217,7 +220,8 @@ const openEditModal = (indicator: Indicator) => {
     targetKeterangan: indicator.targetKeterangan || '',
     targetIsZero: indicator.targetIsZero,
     targetCalculationFormula: indicator.targetCalculationFormula || '',
-    documentFile: indicator.documentFile || ''
+    documentFile: indicator.documentFile || '',
+    entryFrequency: indicator.entryFrequency || 'monthly'
   }
   errorMessage.value = ''
   showModal.value = true
@@ -575,6 +579,7 @@ const formatTarget = (indicator: Indicator) => {
                 <th>Category</th>
                 <th>Target</th>
                 <th>Formula</th>
+                <th>Frequency</th>
                 <th>Status</th>
                 <th class="text-right">Actions</th>
               </tr>
@@ -588,6 +593,11 @@ const formatTarget = (indicator: Indicator) => {
                 </td>
                 <td>{{ formatTarget(indicator) }}</td>
                 <td>{{ indicator.targetCalculationFormula || '-' }}</td>
+                <td>
+                  <span :class="['badge badge-sm', indicator.entryFrequency === 'daily' ? 'badge-info' : 'badge-secondary']">
+                    {{ indicator.entryFrequency === 'daily' ? 'Daily' : 'Monthly' }}
+                  </span>
+                </td>
                 <td>
                   <button
                     @click="toggleStatus(indicator)"
@@ -910,6 +920,20 @@ const formatTarget = (indicator: Indicator) => {
               </label>
             </div>
 
+            <!-- Entry Frequency -->
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text">Entry Frequency <span class="text-error">*</span></span>
+              </label>
+              <select v-model="form.entryFrequency" class="select select-bordered" required>
+                <option value="monthly">Monthly</option>
+                <option value="daily">Daily</option>
+              </select>
+              <label class="label">
+                <span class="label-text-alt">How often this indicator data will be entered</span>
+              </label>
+            </div>
+
             <div class="modal-action">
               <button type="button" @click="closeModal" class="btn" :disabled="saving">Batal</button>
               <button type="submit" class="btn btn-primary" :disabled="saving">
@@ -1062,6 +1086,25 @@ const formatTarget = (indicator: Indicator) => {
                 <label class="text-sm text-base-content/60">Target</label>
                 <p>{{ formatTarget(currentIndicator) }}</p>
               </div>
+              <div>
+                <label class="text-sm text-base-content/60">Entry Frequency</label>
+                <p>
+                  <span :class="['badge badge-sm', currentIndicator.entryFrequency === 'daily' ? 'badge-info' : 'badge-secondary']">
+                    {{ currentIndicator.entryFrequency === 'daily' ? 'Daily' : 'Monthly' }}
+                  </span>
+                </p>
+              </div>
+              <div>
+                <label class="text-sm text-base-content/60">Status</label>
+                <p>
+                  <span :class="['badge badge-sm', currentIndicator.isActive ? 'badge-success' : 'badge-error']">
+                    {{ currentIndicator.isActive ? 'Active' : 'Inactive' }}
+                  </span>
+                </p>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
               <div>
                 <label class="text-sm text-base-content/60">Target is Zero</label>
                 <p>{{ currentIndicator.targetIsZero ? 'Yes' : 'No' }}</p>

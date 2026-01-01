@@ -1,6 +1,6 @@
 import { db } from '../../database'
 import { employees, units, sites } from '../../database/schema'
-import { eq, and, or, ilike } from 'drizzle-orm'
+import { eq, and, or, ilike, isNull } from 'drizzle-orm'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -8,7 +8,7 @@ export default defineEventHandler(async (event) => {
     const { siteId, unitId, search } = query
 
     // Build where conditions
-    const conditions = []
+    const conditions = [isNull(employees.deletedAt)]
     
     if (siteId && siteId !== '') {
       conditions.push(eq(employees.siteId, siteId as string))

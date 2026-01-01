@@ -24,7 +24,7 @@ export default defineEventHandler(async (event) => {
       await deleteFile(employee[0].picture)
     }
     
-    await db.delete(employees).where(eq(employees.id, id))
+    await db.update(employees).set({ deletedAt: new Date() }).where(eq(employees.id, id))
     
     return {
       success: true,

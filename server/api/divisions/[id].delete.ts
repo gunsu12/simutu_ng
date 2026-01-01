@@ -13,7 +13,10 @@ export default defineEventHandler(async (event) => {
       }
     }
     
-    await db.delete(divisions).where(eq(divisions.id, id))
+    await db
+      .update(divisions)
+      .set({ deletedAt: new Date() })
+      .where(eq(divisions.id, id))
     
     return {
       success: true,

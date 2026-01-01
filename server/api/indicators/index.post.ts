@@ -31,6 +31,7 @@ export default defineEventHandler(async (event) => {
       targetIsZero,
       targetCalculationFormula,
       documentFile,
+      entryFrequency,
       isActive,
     } = body
 
@@ -86,6 +87,7 @@ export default defineEventHandler(async (event) => {
         targetIsZero: targetIsZero || false,
         targetCalculationFormula: targetCalculationFormula && targetCalculationFormula.trim() !== '' ? targetCalculationFormula.trim() : null,
         documentFile: documentFile && documentFile.trim() !== '' ? documentFile.trim() : null,
+        entryFrequency: entryFrequency || 'monthly',
         isActive: isActive !== undefined ? isActive : true,
       })
       .returning()

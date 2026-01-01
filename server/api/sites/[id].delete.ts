@@ -29,8 +29,11 @@ export default defineEventHandler(async (event) => {
       await deleteFile(existingSite[0].siteLogo).catch(console.error)
     }
     
-    // Delete site from database
-    await db.delete(sites).where(eq(sites.id, id))
+    // Soft delete site from database
+    await db
+      .update(sites)
+      .set({ deletedAt: new Date() })
+      .where(eq(sites.id, id))
     
     return {
       success: true,

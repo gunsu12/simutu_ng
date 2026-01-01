@@ -1,11 +1,15 @@
 import { db } from '../../database'
 import { sites } from '../../database/schema'
-import { eq } from 'drizzle-orm'
+import { asc, isNull } from 'drizzle-orm'
 import { getPresignedUrl } from '../../utils/s3'
 
 export default defineEventHandler(async (event) => {
   try {
-    const allSites = await db.select().from(sites).orderBy(sites.createdAt)
+    const allSites = await db
+      .select()
+      .from(sites)
+      .where(isNull(sites.deletedAt))
+      .orderBy(sites.createdAt)
     
     // Generate signed URLs for logos
     const sitesWithSignedUrls = await Promise.all(

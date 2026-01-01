@@ -14,7 +14,8 @@ export default defineEventHandler(async (event) => {
     }
 
     const deletedUser = await db
-      .delete(users)
+      .update(users)
+      .set({ deletedAt: new Date() })
       .where(eq(users.id, userId))
       .returning()
 

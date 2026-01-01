@@ -1,6 +1,6 @@
 import { db } from '../../database'
 import { indicatorCategories } from '../../database/schema'
-import { asc, eq } from 'drizzle-orm'
+import { asc, eq, and, isNull } from 'drizzle-orm'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -22,10 +22,14 @@ export default defineEventHandler(async (event) => {
     let queryBuilder = db
       .select()
       .from(indicatorCategories)
+      .where(isNull(indicatorCategories.deletedAt))
 
     if (user.role === 'admin') {
       if (siteIdFilter) {
-        queryBuilder = queryBuilder.where(eq(indicatorCategories.siteId, siteIdFilter))
+        queryBuilder = queryBuilder.where(and(
+          isNull(indicatorCategories.deletedAt),
+          eq(indicatorCategories.siteId, siteIdFilter)
+        ))
       }
     } else {
       if (!user.siteId) {
@@ -35,7 +39,10 @@ export default defineEventHandler(async (event) => {
           message: 'User must be assigned to a site',
         }
       }
-      queryBuilder = queryBuilder.where(eq(indicatorCategories.siteId, user.siteId))
+      queryBuilder = queryBuilder.where(and(
+        isNull(indicatorCategories.deletedAt),
+        eq(indicatorCategories.siteId, user.siteId)
+      ))
     }
 
     const categories = await queryBuilder.orderBy(asc(indicatorCategories.name))
