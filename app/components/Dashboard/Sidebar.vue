@@ -53,7 +53,14 @@ const menuItems: MenuItem[] = [
     name: 'Mutu', 
     icon: Award,
     children: [
-      { name: 'Master Mutu', path: '/dashboard/mutu/master', icon: ClipboardList },
+      { 
+        name: 'Master', 
+        icon: Database,
+        children: [
+          { name: 'Indicator Categories', path: '/dashboard/mutu/master/indicator-categories', icon: ClipboardList },
+          { name: 'Indicator Mutu', path: '/dashboard/mutu/master/indicators', icon: Award }
+        ]
+      },
       { name: 'Nilai Mutu Unit', path: '/dashboard/mutu/nilai-unit', icon: Calculator },
       { 
         name: 'Report', 

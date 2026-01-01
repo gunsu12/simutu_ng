@@ -2,7 +2,8 @@
 import { MapPin, Plus, Search, Edit, Trash2, Globe, Upload, X } from 'lucide-vue-next'
 
 definePageMeta({
-  layout: 'dashboard'
+  layout: 'dashboard',
+  middleware: 'auth'
 })
 
 // Types

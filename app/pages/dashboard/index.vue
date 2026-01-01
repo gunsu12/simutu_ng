@@ -2,7 +2,8 @@
 import { DollarSign, Users, ShoppingCart, Activity, Calendar, BarChart3 } from 'lucide-vue-next'
 
 definePageMeta({
-  layout: 'dashboard'
+  layout: 'dashboard',
+  middleware: 'auth'
 })
 
 const { user } = useAuth()

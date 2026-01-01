@@ -3,6 +3,7 @@ import { Search, Plus, Edit, Trash2 } from 'lucide-vue-next'
 
 definePageMeta({
   layout: 'dashboard',
+  middleware: 'auth'
 })
 
 interface Site {
@@ -46,6 +47,7 @@ const modalOpen = ref(false)
 const isEditMode = ref(false)
 const editingId = ref<string | null>(null)
 const searchQuery = ref('')
+const filterSiteId = ref('')
 
 // Form data
 const formData = ref({
@@ -58,24 +60,16 @@ const formData = ref({
   headOfUnit: '',
 })
 
-// Computed
-const filteredUnits = computed(() => {
-  if (!searchQuery.value) return units.value
-  const query = searchQuery.value.toLowerCase()
-  return units.value.filter(
-    (unit) =>
-      unit.unitCode.toLowerCase().includes(query) ||
-      unit.name.toLowerCase().includes(query) ||
-      (unit.divisionName && unit.divisionName.toLowerCase().includes(query)) ||
-      (unit.location && unit.location.toLowerCase().includes(query))
-  )
-})
-
 // Fetch units
 const fetchUnits = async () => {
   loading.value = true
   try {
-    const response = await $fetch<{ success: boolean; data: Unit[] }>('/api/units')
+    const params: any = {}
+    if (filterSiteId.value) params.siteId = filterSiteId.value
+
+    const response = await $fetch<{ success: boolean; data: Unit[] }>('/api/units', {
+      query: params,
+    })
     if (response.success) {
       units.value = response.data
     }
@@ -84,6 +78,11 @@ const fetchUnits = async () => {
   } finally {
     loading.value = false
   }
+}
+
+// Handle filter change
+const handleFilterChange = () => {
+  fetchUnits()
 }
 
 // Fetch sites
@@ -254,17 +253,47 @@ onMounted(() => {
       </button>
     </div>
 
-    <!-- Search -->
-    <div class="mb-4">
-      <div class="relative">
-        <Search :size="20" class="absolute left-3 top-1/2 -translate-y-1/2 text-base-content/50" />
-        <input
-          v-model="searchQuery"
-          type="text"
-          placeholder="Search units..."
-          class="input input-bordered w-full pl-10"
-        />
+    <!-- Filters -->
+    <div class="grid grid-cols-2 gap-4 mb-6">
+      <div>
+        <label class="label">
+          <span class="label-text">Site</span>
+        </label>
+        <select
+          v-model="filterSiteId"
+          @change="handleFilterChange"
+          class="select select-bordered w-full"
+        >
+          <option value="">All Sites</option>
+          <option v-for="site in sites" :key="site.id" :value="site.id">
+            {{ site.name }}
+          </option>
+        </select>
       </div>
+      <div>
+        <label class="label">
+          <span class="label-text">Search</span>
+        </label>
+        <div class="relative">
+          <Search :size="20" class="absolute left-3 top-1/2 -translate-y-1/2 text-base-content/50" />
+          <input
+            v-model="searchQuery"
+            type="text"
+            placeholder="Search units..."
+            class="input input-bordered w-full pl-10"
+          />
+        </div>
+      </div>
+    </div>
+
+    <!-- Clear Filters -->
+    <div class="mb-4" v-if="filterSiteId">
+      <button
+        @click="() => { filterSiteId = ''; fetchUnits() }"
+        class="btn btn-ghost btn-sm"
+      >
+        Clear Filters
+      </button>
     </div>
 
     <!-- Table -->
@@ -276,6 +305,7 @@ onMounted(() => {
               <tr>
                 <th>Unit Code</th>
                 <th>Name</th>
+                <th>Site</th>
                 <th>Division</th>
                 <th>Location</th>
                 <th>Head of Unit</th>
@@ -284,16 +314,17 @@ onMounted(() => {
             </thead>
             <tbody>
               <tr v-if="loading">
-                <td colspan="6" class="text-center py-8">
+                <td colspan="7" class="text-center py-8">
                   <span class="loading loading-spinner loading-md"></span>
                 </td>
               </tr>
-              <tr v-else-if="filteredUnits.length === 0">
-                <td colspan="6" class="text-center py-8 text-base-content/50">No units found</td>
+              <tr v-else-if="units.length === 0">
+                <td colspan="7" class="text-center py-8 text-base-content/50">No units found</td>
               </tr>
-              <tr v-for="unit in filteredUnits" :key="unit.id" class="hover">
+              <tr v-for="unit in units" :key="unit.id" class="hover">
                 <td>{{ unit.unitCode }}</td>
                 <td class="font-medium">{{ unit.name }}</td>
+                <td>{{ unit.siteName || '-' }}</td>
                 <td>{{ unit.divisionName || '-' }}</td>
                 <td>{{ unit.location || '-' }}</td>
                 <td>{{ unit.headOfUnitName || '-' }}</td>

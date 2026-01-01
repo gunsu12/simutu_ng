@@ -1,144 +1,115 @@
 <script setup lang="ts">
-import { Sun, Moon, Building2 } from 'lucide-vue-next'
+import { LogIn } from 'lucide-vue-next'
 
 definePageMeta({
-  layout: 'auth'
+  layout: false,
 })
 
-const { login, loading } = useAuth()
-const { toggleTheme, isDark, initTheme } = useTheme()
+const { fetchSession } = useAuth()
+const email = ref('')
+const password = ref('')
+const loading = ref(false)
+const error = ref('')
 
-const isLoading = ref(false)
+const handleLogin = async () => {
+  loading.value = true
+  error.value = ''
 
-const handleCompanySSO = async () => {
-  isLoading.value = true
   try {
-    await login('company')
+    const response = await $fetch('/api/auth/login', {
+      method: 'POST',
+      body: {
+        email: email.value,
+        password: password.value,
+      },
+    })
+
+    if (response.success) {
+      // Fetch session to populate user state
+      await fetchSession()
+      // Force redirect to dashboard
+      window.location.href = '/dashboard'
+    } else {
+      error.value = response.message || 'Login failed'
+    }
+  } catch (err: any) {
+    error.value = err?.data?.message || 'Login failed. Please try again.'
   } finally {
-    isLoading.value = false
+    loading.value = false
   }
 }
-
-onMounted(() => {
-  initTheme()
-})
 </script>
 
 <template>
-  <div class="min-h-screen flex">
-    <!-- Left Panel - Branding -->
-    <div class="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-primary to-secondary p-12 flex-col justify-between">
-      <div>
-        <div class="flex items-center gap-3">
-          <div class="w-10 h-10 bg-white/20 backdrop-blur rounded-xl flex items-center justify-center">
-            <span class="text-white font-bold text-xl">S</span>
+  <div class="min-h-screen flex items-center justify-center bg-base-200 p-4">
+    <div class="card w-full max-w-md bg-base-100 shadow-xl">
+      <div class="card-body">
+        <!-- Logo/Title -->
+        <div class="text-center mb-6">
+          <div class="flex items-center justify-center gap-3 mb-4">
+            <div class="w-12 h-12 bg-primary rounded-xl flex items-center justify-center">
+              <span class="text-primary-content font-bold text-2xl">S</span>
+            </div>
+            <span class="text-3xl font-bold text-base-content">Simutu NG</span>
           </div>
-          <span class="text-2xl font-bold text-white">Simutu NG</span>
+          <h2 class="text-2xl font-bold text-base-content">Sign In</h2>
+          <p class="text-base-content/60 mt-2">Enter your credentials to access the dashboard</p>
         </div>
-      </div>
-      
-      <div class="space-y-6">
-        <h1 class="text-4xl font-bold text-white leading-tight">
-          Welcome to your<br />Modern Dashboard
-        </h1>
-        <p class="text-white/80 text-lg max-w-md">
-          Manage your business with a clean, intuitive, and powerful dashboard experience.
-        </p>
-      </div>
 
-      <div class="flex items-center gap-4 text-white/60 text-sm">
-        <span>© 2026 Simutu NG</span>
-        <span>•</span>
-        <a href="#" class="hover:text-white transition-colors">Privacy</a>
-        <span>•</span>
-        <a href="#" class="hover:text-white transition-colors">Terms</a>
-      </div>
-    </div>
+        <!-- Error Alert -->
+        <div v-if="error" class="alert alert-error mb-4">
+          <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <span>{{ error }}</span>
+        </div>
 
-    <!-- Right Panel - Login Form -->
-    <div class="flex-1 flex flex-col">
-      <!-- Theme Toggle -->
-      <div class="flex justify-end p-6">
-        <button 
-          class="btn btn-ghost btn-sm btn-square"
-          @click="toggleTheme"
-        >
-          <Sun v-if="isDark" class="w-5 h-5" />
-          <Moon v-else class="w-5 h-5" />
-        </button>
-      </div>
-
-      <!-- Login Form -->
-      <div class="flex-1 flex items-center justify-center p-6 lg:p-12">
-        <div class="w-full max-w-md space-y-8">
-          <!-- Mobile Logo -->
-          <div class="lg:hidden text-center">
-            <div class="flex items-center justify-center gap-3 mb-4">
-              <div class="w-10 h-10 bg-primary rounded-xl flex items-center justify-center">
-                <span class="text-primary-content font-bold text-xl">S</span>
-              </div>
-              <span class="text-2xl font-bold text-base-content">Simutu NG</span>
-            </div>
+        <!-- Login Form -->
+        <form @submit.prevent="handleLogin" class="space-y-4">
+          <div class="form-control">
+            <label class="label">
+              <span class="label-text font-medium">Email</span>
+            </label>
+            <input 
+              v-model="email"
+              type="email" 
+              placeholder="admin@example.com" 
+              class="input input-bordered w-full"
+              required
+              :disabled="loading"
+            />
+          </div>
+          
+          <div class="form-control">
+            <label class="label">
+              <span class="label-text font-medium">Password</span>
+            </label>
+            <input 
+              v-model="password"
+              type="password" 
+              placeholder="••••••••" 
+              class="input input-bordered w-full"
+              required
+              :disabled="loading"
+            />
           </div>
 
-          <div class="text-center lg:text-left">
-            <h2 class="text-3xl font-bold text-base-content">Sign in</h2>
-            <p class="mt-2 text-base-content/60">
-              Use your company account to sign in
-            </p>
-          </div>
+          <button 
+            type="submit" 
+            class="btn btn-primary w-full"
+            :disabled="loading"
+          >
+            <span v-if="loading" class="loading loading-spinner loading-sm"></span>
+            <span v-else>Sign In</span>
+          </button>
+        </form>
 
-          <!-- Company SSO Button -->
-          <div>
-            <button
-              @click="handleCompanySSO"
-              :disabled="isLoading"
-              class="btn btn-primary w-full h-14 gap-3 font-medium text-base"
-            >
-              <span v-if="isLoading" class="loading loading-spinner loading-sm"></span>
-              <Building2 v-else class="w-5 h-5" />
-              Sign in with Company SSO
-            </button>
-          </div>
-
-          <div class="divider text-base-content/40">or</div>
-
-          <!-- Email Login (Optional - for future implementation) -->
-          <form class="space-y-4" @submit.prevent>
-            <div class="form-control">
-              <label class="label">
-                <span class="label-text font-medium">Email</span>
-              </label>
-              <input 
-                type="email" 
-                placeholder="name@company.com" 
-                class="input input-bordered w-full focus:input-primary"
-              />
-            </div>
-            
-            <div class="form-control">
-              <label class="label">
-                <span class="label-text font-medium">Password</span>
-              </label>
-              <input 
-                type="password" 
-                placeholder="••••••••" 
-                class="input input-bordered w-full focus:input-primary"
-              />
-              <label class="label">
-                <a href="#" class="label-text-alt link link-hover text-primary">Forgot password?</a>
-              </label>
-            </div>
-
-            <button type="submit" class="btn btn-primary w-full h-12">
-              Sign in with Email
-            </button>
-          </form>
-
-          <p class="text-center text-sm text-base-content/60">
-            Don't have an account? 
-            <a href="#" class="link link-primary font-medium">Contact administrator</a>
-          </p>
+        <!-- Demo Credentials -->
+        <div class="divider text-xs">Demo Credentials</div>
+        <div class="bg-base-200 p-4 rounded-lg text-sm space-y-1">
+          <p class="font-medium text-base-content/80">Admin Account:</p>
+          <p class="text-base-content/60">Email: <span class="font-mono">admin@example.com</span></p>
+          <p class="text-base-content/60">Password: <span class="font-mono">password</span></p>
         </div>
       </div>
     </div>

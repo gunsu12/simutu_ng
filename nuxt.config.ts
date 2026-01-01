@@ -2,10 +2,21 @@
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: true },
+  
+  future: {
+    compatibilityVersion: 4
+  },
+  
   modules: [
     '@nuxtjs/tailwindcss',
     '@pinia/nuxt'
   ],
+
+  // Improve performance with page caching
+  routeRules: {
+    '/dashboard/**': { ssr: false },
+    '/login': { ssr: false }
+  },
 
   app: {
     head: {
@@ -16,10 +27,16 @@ export default defineNuxtConfig({
       link: [
         { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' }
       ]
-    }
+    },
+    pageTransition: { name: 'page', mode: 'out-in' }
   },
 
   tailwindcss: {
     configPath: 'tailwind.config.ts'
+  },
+
+  // Experimental features for better performance
+  experimental: {
+    payloadExtraction: false
   }
 })

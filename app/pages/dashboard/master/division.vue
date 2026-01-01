@@ -3,6 +3,7 @@ import { Search, Plus, Edit, Trash2 } from 'lucide-vue-next'
 
 definePageMeta({
   layout: 'dashboard',
+  middleware: 'auth'
 })
 
 interface Site {
@@ -29,6 +30,7 @@ const modalOpen = ref(false)
 const isEditMode = ref(false)
 const editingId = ref<string | null>(null)
 const searchQuery = ref('')
+const filterSiteId = ref('')
 
 // Form data
 const formData = ref({
@@ -38,23 +40,16 @@ const formData = ref({
   description: '',
 })
 
-// Computed
-const filteredDivisions = computed(() => {
-  if (!searchQuery.value) return divisions.value
-  const query = searchQuery.value.toLowerCase()
-  return divisions.value.filter(
-    (division) =>
-      division.code.toLowerCase().includes(query) ||
-      division.name.toLowerCase().includes(query) ||
-      (division.description && division.description.toLowerCase().includes(query))
-  )
-})
-
 // Fetch divisions
 const fetchDivisions = async () => {
   loading.value = true
   try {
-    const response = await $fetch<{ success: boolean; data: Division[] }>('/api/divisions')
+    const params: any = {}
+    if (filterSiteId.value) params.siteId = filterSiteId.value
+
+    const response = await $fetch<{ success: boolean; data: Division[] }>('/api/divisions', {
+      query: params,
+    })
     if (response.success) {
       divisions.value = response.data
     }
@@ -63,6 +58,11 @@ const fetchDivisions = async () => {
   } finally {
     loading.value = false
   }
+}
+
+// Handle filter change
+const handleFilterChange = () => {
+  fetchDivisions()
 }
 
 // Fetch sites
@@ -188,17 +188,47 @@ onMounted(() => {
       </button>
     </div>
 
-    <!-- Search -->
-    <div class="mb-4">
-      <div class="relative">
-        <Search :size="20" class="absolute left-3 top-1/2 -translate-y-1/2 text-base-content/50" />
-        <input
-          v-model="searchQuery"
-          type="text"
-          placeholder="Search divisions..."
-          class="input input-bordered w-full pl-10"
-        />
+    <!-- Filters -->
+    <div class="grid grid-cols-2 gap-4 mb-6">
+      <div>
+        <label class="label">
+          <span class="label-text">Site</span>
+        </label>
+        <select
+          v-model="filterSiteId"
+          @change="handleFilterChange"
+          class="select select-bordered w-full"
+        >
+          <option value="">All Sites</option>
+          <option v-for="site in sites" :key="site.id" :value="site.id">
+            {{ site.name }}
+          </option>
+        </select>
       </div>
+      <div>
+        <label class="label">
+          <span class="label-text">Search</span>
+        </label>
+        <div class="relative">
+          <Search :size="20" class="absolute left-3 top-1/2 -translate-y-1/2 text-base-content/50" />
+          <input
+            v-model="searchQuery"
+            type="text"
+            placeholder="Search divisions..."
+            class="input input-bordered w-full pl-10"
+          />
+        </div>
+      </div>
+    </div>
+
+    <!-- Clear Filters -->
+    <div class="mb-4" v-if="filterSiteId">
+      <button
+        @click="() => { filterSiteId = ''; fetchDivisions() }"
+        class="btn btn-ghost btn-sm"
+      >
+        Clear Filters
+      </button>
     </div>
 
     <!-- Table -->
@@ -210,6 +240,7 @@ onMounted(() => {
               <tr>
                 <th>Code</th>
                 <th>Name</th>
+                <th>Site</th>
                 <th>Description</th>
                 <th>Created At</th>
                 <th class="text-right">Actions</th>
@@ -217,16 +248,17 @@ onMounted(() => {
             </thead>
             <tbody>
               <tr v-if="loading">
-                <td colspan="5" class="text-center py-8">
+                <td colspan="6" class="text-center py-8">
                   <span class="loading loading-spinner loading-md"></span>
                 </td>
               </tr>
-              <tr v-else-if="filteredDivisions.length === 0">
-                <td colspan="5" class="text-center py-8 text-base-content/50">No divisions found</td>
+              <tr v-else-if="divisions.length === 0">
+                <td colspan="6" class="text-center py-8 text-base-content/50">No divisions found</td>
               </tr>
-              <tr v-for="division in filteredDivisions" :key="division.id" class="hover">
+              <tr v-for="division in divisions" :key="division.id" class="hover">
                 <td>{{ division.code }}</td>
                 <td class="font-medium">{{ division.name }}</td>
+                <td>{{ division.siteName || '-' }}</td>
                 <td>{{ division.description || '-' }}</td>
                 <td>{{ new Date(division.createdAt).toLocaleDateString() }}</td>
                 <td class="text-right">

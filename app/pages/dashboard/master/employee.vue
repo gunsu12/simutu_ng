@@ -4,6 +4,7 @@ import { Employee } from '../../../../server/database/schema';
 
 definePageMeta({
   layout: 'dashboard',
+  middleware: 'auth'
 })
 
 interface Site {
@@ -14,6 +15,7 @@ interface Site {
 interface Unit {
   id: string
   name: string
+  siteId?: string
 }
 
 interface Employee {
@@ -116,6 +118,12 @@ const handleSearch = () => {
     fetchEmployees()
   }, 500)
 }
+
+// Filtered units based on selected site in form
+const filteredFormUnits = computed(() => {
+  if (!formData.value.siteId) return []
+  return units.value.filter((unit) => unit.siteId === formData.value.siteId)
+})
 
 // Handle file selection
 const handleFileChange = (event: Event) => {
@@ -243,6 +251,11 @@ const handleDelete = async (id: string) => {
     loading.value = false
   }
 }
+
+// Watch site change and reset unit
+watch(() => formData.value.siteId, () => {
+  formData.value.unitId = ''
+})
 
 // Load data on mount
 onMounted(() => {
@@ -470,9 +483,9 @@ onMounted(() => {
               <label class="label">
                 <span class="label-text">Unit</span>
               </label>
-              <select v-model="formData.unitId" class="select select-bordered">
-                <option value="">Select Unit</option>
-                <option v-for="unit in units" :key="unit.id" :value="unit.id">
+              <select v-model="formData.unitId" class="select select-bordered" :disabled="!formData.siteId">
+                <option value="">{{ formData.siteId ? 'Select Unit' : 'Select Site First' }}</option>
+                <option v-for="unit in filteredFormUnits" :key="unit.id" :value="unit.id">
                   {{ unit.name }}
                 </option>
               </select>

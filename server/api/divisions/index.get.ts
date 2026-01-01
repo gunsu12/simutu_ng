@@ -1,9 +1,16 @@
 import { db } from '../../database'
 import { divisions, sites } from '../../database/schema'
-import { eq } from 'drizzle-orm'
+import { eq, and } from 'drizzle-orm'
 
 export default defineEventHandler(async (event) => {
   try {
+    const { siteId } = getQuery(event)
+    const conditions = []
+    
+    if (siteId && siteId !== '') {
+      conditions.push(eq(divisions.siteId, siteId as string))
+    }
+
     const allDivisions = await db
       .select({
         id: divisions.id,
@@ -17,6 +24,7 @@ export default defineEventHandler(async (event) => {
       })
       .from(divisions)
       .leftJoin(sites, eq(divisions.siteId, sites.id))
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
       .orderBy(divisions.createdAt)
     
     return {

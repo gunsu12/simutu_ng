@@ -1,0 +1,59 @@
+import { db } from '../../database'
+import { users } from '../../database/schema'
+import { eq } from 'drizzle-orm'
+import bcrypt from 'bcrypt'
+
+export default defineEventHandler(async (event) => {
+  try {
+    const userId = event.context.params?.id
+    const body = await readBody(event)
+
+    if (!userId) {
+      setResponseStatus(event, 400)
+      return {
+        success: false,
+        message: 'User ID is required',
+      }
+    }
+
+    const { name, username, email, password, role, employeeId, siteId } = body
+
+    const updateData: any = {}
+    if (name) updateData.name = name
+    if (username) updateData.username = username
+    if (email) updateData.email = email
+    if (password) {
+      // Hash the password if provided
+      updateData.password = await bcrypt.hash(password, 10)
+    }
+    if (role) updateData.role = role
+    if (employeeId !== undefined) updateData.employeeId = employeeId && employeeId.trim() !== '' ? employeeId : null
+    if (siteId !== undefined) updateData.siteId = siteId && siteId.trim() !== '' ? siteId : null
+
+    const updatedUser = await db
+      .update(users)
+      .set(updateData)
+      .where(eq(users.id, userId))
+      .returning()
+
+    if (updatedUser.length === 0) {
+      setResponseStatus(event, 404)
+      return {
+        success: false,
+        message: 'User not found',
+      }
+    }
+
+    return {
+      success: true,
+      data: updatedUser[0],
+    }
+  } catch (error: any) {
+    console.error('Error updating user:', error)
+    setResponseStatus(event, 500)
+    return {
+      success: false,
+      message: error.message || 'Failed to update user',
+    }
+  }
+})
