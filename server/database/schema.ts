@@ -97,6 +97,15 @@ export const indicators = pgTable('indicators', {
   targetIsZero: boolean('target_is_zero').default(false),
   targetCalculationFormula: text('target_calculation_formula'), // "N/D", "N-D", "(N/D)*100"
   documentFile: text('document_file'),
+  isActive: boolean('is_active').default(true).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+})
+
+export const indicatorUnits = pgTable('indicator_units', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  indicatorId: uuid('indicator_id').notNull().references(() => indicators.id, { onDelete: 'cascade' }),
+  unitId: uuid('unit_id').notNull().references(() => units.id, { onDelete: 'cascade' }),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 })
@@ -124,3 +133,6 @@ export type NewIndicatorCategory = typeof indicatorCategories.$inferInsert
 
 export type Indicator = typeof indicators.$inferSelect
 export type NewIndicator = typeof indicators.$inferInsert
+
+export type IndicatorUnit = typeof indicatorUnits.$inferSelect
+export type NewIndicatorUnit = typeof indicatorUnits.$inferInsert

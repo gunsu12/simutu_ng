@@ -60,6 +60,7 @@ export default defineEventHandler(async (event) => {
         targetIsZero: indicators.targetIsZero,
         targetCalculationFormula: indicators.targetCalculationFormula,
         documentFile: indicators.documentFile,
+        isActive: indicators.isActive,
         createdAt: indicators.createdAt,
         updatedAt: indicators.updatedAt,
         categoryName: indicatorCategories.name,

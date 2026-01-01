@@ -30,6 +30,7 @@ export default defineEventHandler(async (event) => {
       targetIsZero,
       targetCalculationFormula,
       documentFile,
+      isActive,
     } = body
 
     if (!indicatorCategoryId || !code || !judul) {
@@ -58,6 +59,7 @@ export default defineEventHandler(async (event) => {
         targetIsZero: targetIsZero || false,
         targetCalculationFormula: targetCalculationFormula && targetCalculationFormula.trim() !== '' ? targetCalculationFormula.trim() : null,
         documentFile: documentFile && documentFile.trim() !== '' ? documentFile.trim() : null,
+        isActive: isActive !== undefined ? isActive : true,
         updatedAt: new Date(),
       })
       .where(eq(indicators.id, id))

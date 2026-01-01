@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Search, Plus, Edit, Trash2, FileText, Filter, RefreshCw, Upload, Eye } from 'lucide-vue-next'
+import { Search, Plus, Edit, Trash2, FileText, Filter, RefreshCw, Upload, Eye, Users } from 'lucide-vue-next'
 
 definePageMeta({
   layout: 'dashboard',
@@ -16,8 +16,23 @@ interface Site {
   name: string
 }
 
+interface Unit {
+  id: string
+  name: string
+  unitCode: string
+}
+
+interface IndicatorUnit {
+  id: string
+  indicatorId: string
+  unitId: string
+  unitName: string
+  unitCode: string
+}
+
 interface Indicator {
   id: string
+  siteId: string
   indicatorCategoryId: string
   categoryName: string
   code: string
@@ -34,6 +49,7 @@ interface Indicator {
   targetIsZero: boolean
   targetCalculationFormula: string | null
   documentFile: string | null
+  isActive: boolean
   createdAt: string
   updatedAt: string
 }
@@ -47,6 +63,7 @@ const searchQuery = ref('')
 const filterCategoryId = ref('')
 const showModal = ref(false)
 const showDetailModal = ref(false)
+const showUnitsModal = ref(false)
 const isEditing = ref(false)
 const currentIndicator = ref<Indicator | null>(null)
 const saving = ref(false)
@@ -54,6 +71,11 @@ const errorMessage = ref('')
 const uploadingFile = ref(false)
 const selectedFile = ref<File | null>(null)
 const uploadProgress = ref(0)
+const selectedIndicatorForUnits = ref<Indicator | null>(null)
+const assignedUnits = ref<IndicatorUnit[]>([])
+const availableUnits = ref<Unit[]>([])
+const loadingUnits = ref(false)
+const selectedUnitId = ref('')
 
 // Form data with all fields
 const form = ref({
@@ -284,6 +306,87 @@ const removeDocument = () => {
   selectedFile.value = null
 }
 
+const openUnitsModal = async (indicator: Indicator) => {
+  selectedIndicatorForUnits.value = indicator
+  showUnitsModal.value = true
+  await loadIndicatorUnits(indicator.id)
+  await loadAvailableUnits(indicator.siteId)
+}
+
+const closeUnitsModal = () => {
+  showUnitsModal.value = false
+  selectedIndicatorForUnits.value = null
+  assignedUnits.value = []
+  availableUnits.value = []
+  selectedUnitId.value = ''
+}
+
+const loadIndicatorUnits = async (indicatorId: string) => {
+  loadingUnits.value = true
+  try {
+    const response = await $fetch<{ success: boolean; data: IndicatorUnit[] }>(`/api/indicator-units?indicatorId=${indicatorId}`)
+    if (response.success) {
+      assignedUnits.value = response.data
+    }
+  } catch (error) {
+    console.error('Error loading indicator units:', error)
+  } finally {
+    loadingUnits.value = false
+  }
+}
+
+const loadAvailableUnits = async (siteId: string) => {
+  try {
+    const response = await $fetch<{ success: boolean; data: Unit[] }>(`/api/units?siteId=${siteId}`)
+    if (response.success) {
+      availableUnits.value = response.data
+    }
+  } catch (error) {
+    console.error('Error loading units:', error)
+  }
+}
+
+const assignUnitToIndicator = async () => {
+  if (!selectedUnitId.value || !selectedIndicatorForUnits.value) return
+
+  try {
+    const response = await $fetch<{ success: boolean; message?: string }>('/api/indicator-units', {
+      method: 'POST',
+      body: {
+        indicatorId: selectedIndicatorForUnits.value.id,
+        unitId: selectedUnitId.value
+      }
+    })
+
+    if (response.success) {
+      await loadIndicatorUnits(selectedIndicatorForUnits.value.id)
+      selectedUnitId.value = ''
+    } else {
+      alert(response.message || 'Failed to assign unit')
+    }
+  } catch (error: any) {
+    console.error('Error assigning unit:', error)
+    alert(error.data?.message || 'Failed to assign unit')
+  }
+}
+
+const removeUnitFromIndicator = async (indicatorUnitId: string) => {
+  if (!confirm('Are you sure you want to remove this unit assignment?')) return
+
+  try {
+    const response = await $fetch<{ success: boolean }>(`/api/indicator-units/${indicatorUnitId}`, {
+      method: 'DELETE'
+    })
+
+    if (response.success && selectedIndicatorForUnits.value) {
+      await loadIndicatorUnits(selectedIndicatorForUnits.value.id)
+    }
+  } catch (error: any) {
+    console.error('Error removing unit:', error)
+    alert(error.data?.message || 'Failed to remove unit')
+  }
+}
+
 const closeDetailModal = () => {
   showDetailModal.value = false
   currentIndicator.value = null
@@ -353,6 +456,27 @@ const deleteIndicator = async (id: string) => {
   } catch (err: any) {
     console.error('Error deleting indicator:', err)
     alert(err.data?.message || 'Failed to delete indicator')
+  }
+}
+
+const toggleStatus = async (indicator: Indicator) => {
+  try {
+    const response = await $fetch<{ success: boolean; message?: string }>(`/api/indicators/${indicator.id}`, {
+      method: 'PUT',
+      body: {
+        ...indicator,
+        isActive: !indicator.isActive
+      }
+    })
+
+    if (response.success) {
+      await refreshIndicators()
+    } else {
+      alert(response.message || 'Failed to update status')
+    }
+  } catch (error: any) {
+    console.error('Error toggling status:', error)
+    alert(error.data?.message || 'Failed to update status')
   }
 }
 
@@ -451,6 +575,7 @@ const formatTarget = (indicator: Indicator) => {
                 <th>Category</th>
                 <th>Target</th>
                 <th>Formula</th>
+                <th>Status</th>
                 <th class="text-right">Actions</th>
               </tr>
             </thead>
@@ -463,8 +588,26 @@ const formatTarget = (indicator: Indicator) => {
                 </td>
                 <td>{{ formatTarget(indicator) }}</td>
                 <td>{{ indicator.targetCalculationFormula || '-' }}</td>
+                <td>
+                  <button
+                    @click="toggleStatus(indicator)"
+                    :class="[
+                      'badge badge-sm cursor-pointer',
+                      indicator.isActive ? 'badge-success' : 'badge-error'
+                    ]"
+                  >
+                    {{ indicator.isActive ? 'Active' : 'Inactive' }}
+                  </button>
+                </td>
                 <td class="text-right">
                   <div class="flex justify-end gap-1">
+                    <button
+                      @click="openUnitsModal(indicator)"
+                      class="btn btn-ghost btn-sm btn-square"
+                      title="Manage Units"
+                    >
+                      <Users class="w-4 h-4" />
+                    </button>
                     <button
                       @click="openDetailModal(indicator)"
                       class="btn btn-ghost btn-sm btn-square"
@@ -778,6 +921,77 @@ const formatTarget = (indicator: Indicator) => {
         </div>
         <form method="dialog" class="modal-backdrop">
           <button type="button" @click="closeModal">close</button>
+        </form>
+      </dialog>
+    </Teleport>
+
+    <!-- Units Mapping Modal -->
+    <Teleport to="body">
+      <dialog :class="['modal', { 'modal-open': showUnitsModal }]" :open="showUnitsModal">
+        <div class="modal-box max-w-2xl">
+          <button type="button" class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" @click="closeUnitsModal">✕</button>
+          <h3 class="font-bold text-lg mb-4">
+            Manage Units for: {{ selectedIndicatorForUnits?.judul }}
+          </h3>
+
+          <!-- Assigned Units List -->
+          <div class="mb-6">
+            <h4 class="font-semibold mb-3">Assigned Units</h4>
+            <div v-if="loadingUnits" class="flex justify-center py-4">
+              <span class="loading loading-spinner loading-md"></span>
+            </div>
+            <div v-else-if="assignedUnits.length === 0" class="text-center py-4 text-base-content/60">
+              No units assigned yet
+            </div>
+            <div v-else class="space-y-2">
+              <div
+                v-for="unit in assignedUnits"
+                :key="unit.id"
+                class="flex items-center justify-between p-3 bg-base-200 rounded-lg"
+              >
+                <div>
+                  <p class="font-medium">{{ unit.unitName }}</p>
+                  <p class="text-sm text-base-content/60">{{ unit.unitCode }}</p>
+                </div>
+                <button
+                  @click="removeUnitFromIndicator(unit.id)"
+                  class="btn btn-ghost btn-sm btn-circle text-error"
+                >
+                  <Trash2 class="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Add New Unit -->
+          <div class="divider">Add Unit</div>
+          <div class="flex gap-2">
+            <select v-model="selectedUnitId" class="select select-bordered flex-1">
+              <option value="">Select a unit to assign</option>
+              <option
+                v-for="unit in availableUnits.filter(u => !assignedUnits.some(au => au.unitId === u.id))"
+                :key="unit.id"
+                :value="unit.id"
+              >
+                {{ unit.name }} ({{ unit.unitCode }})
+              </option>
+            </select>
+            <button
+              @click="assignUnitToIndicator"
+              class="btn btn-primary"
+              :disabled="!selectedUnitId"
+            >
+              <Plus class="w-4 h-4" />
+              Assign
+            </button>
+          </div>
+
+          <div class="modal-action">
+            <button type="button" @click="closeUnitsModal" class="btn">Close</button>
+          </div>
+        </div>
+        <form method="dialog" class="modal-backdrop">
+          <button type="button" @click="closeUnitsModal">close</button>
         </form>
       </dialog>
     </Teleport>
