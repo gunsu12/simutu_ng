@@ -1,9 +1,15 @@
 <script setup lang="ts">
 import { Search, Plus, Edit, Trash2, Upload } from 'lucide-vue-next'
+import { Employee } from '../../../../server/database/schema';
 
 definePageMeta({
   layout: 'dashboard',
 })
+
+interface Site {
+  id: string
+  name: string
+}
 
 interface Unit {
   id: string
@@ -12,6 +18,7 @@ interface Unit {
 
 interface Employee {
   id: string
+  siteId: string | null
   nik: string
   fullName: string
   unitId: string | null
@@ -20,11 +27,13 @@ interface Employee {
   picture: string | null
   createdAt: Date
   updatedAt: Date
+  siteName?: string | null
   unitName?: string | null
 }
 
 // State
 const employees = ref<Employee[]>([])
+const sites = ref<Site[]>([])
 const units = ref<Unit[]>([])
 const loading = ref(false)
 const modalOpen = ref(false)
@@ -34,8 +43,13 @@ const searchQuery = ref('')
 const picturePreview = ref<string | null>(null)
 const selectedFile = ref<File | null>(null)
 
+// Filter state
+const filterSiteId = ref('')
+const filterUnitId = ref('')
+
 // Form data
 const formData = ref({
+  siteId: '',
   nik: '',
   fullName: '',
   unitId: '',
@@ -43,23 +57,18 @@ const formData = ref({
   phoneNumber: '',
 })
 
-// Computed
-const filteredEmployees = computed(() => {
-  if (!searchQuery.value) return employees.value
-  const query = searchQuery.value.toLowerCase()
-  return employees.value.filter(
-    (employee) =>
-      employee.nik.toLowerCase().includes(query) ||
-      employee.fullName.toLowerCase().includes(query) ||
-      (employee.unitName && employee.unitName.toLowerCase().includes(query))
-  )
-})
-
-// Fetch employees
+// Fetch employees with filters
 const fetchEmployees = async () => {
   loading.value = true
   try {
-    const response = await $fetch<{ success: boolean; data: Employee[] }>('/api/employees')
+    const params: any = {}
+    if (filterSiteId.value) params.siteId = filterSiteId.value
+    if (filterUnitId.value) params.unitId = filterUnitId.value
+    if (searchQuery.value) params.search = searchQuery.value
+
+    const response = await $fetch<{ success: boolean; data: Employee[] }>('/api/employees', {
+      query: params,
+    })
     if (response.success) {
       employees.value = response.data
     }
@@ -67,6 +76,18 @@ const fetchEmployees = async () => {
     console.error('Failed to fetch employees:', error)
   } finally {
     loading.value = false
+  }
+}
+
+// Fetch sites
+const fetchSites = async () => {
+  try {
+    const response = await $fetch<{ success: boolean; data: Site[] }>('/api/sites')
+    if (response.success) {
+      sites.value = response.data
+    }
+  } catch (error) {
+    console.error('Failed to fetch sites:', error)
   }
 }
 
@@ -80,6 +101,20 @@ const fetchUnits = async () => {
   } catch (error) {
     console.error('Failed to fetch units:', error)
   }
+}
+
+// Handle filter changes
+const handleFilterChange = () => {
+  fetchEmployees()
+}
+
+// Handle search with debounce
+const searchTimeout = ref<ReturnType<typeof setTimeout> | null>(null)
+const handleSearch = () => {
+  if (searchTimeout.value) clearTimeout(searchTimeout.value)
+  searchTimeout.value = setTimeout(() => {
+    fetchEmployees()
+  }, 500)
 }
 
 // Handle file selection
@@ -103,6 +138,7 @@ const openCreateModal = () => {
   picturePreview.value = null
   selectedFile.value = null
   formData.value = {
+    siteId: '',
     nik: '',
     fullName: '',
     unitId: '',
@@ -119,6 +155,7 @@ const openEditModal = (employee: Employee) => {
   picturePreview.value = employee.picture
   selectedFile.value = null
   formData.value = {
+    siteId: employee.siteId || '',
     nik: employee.nik,
     fullName: employee.fullName,
     unitId: employee.unitId || '',
@@ -134,6 +171,7 @@ const closeModal = () => {
   picturePreview.value = null
   selectedFile.value = null
   formData.value = {
+    siteId: '',
     nik: '',
     fullName: '',
     unitId: '',
@@ -147,6 +185,7 @@ const handleSubmit = async () => {
   loading.value = true
   try {
     const formDataToSend = new FormData()
+    formDataToSend.append('siteId', formData.value.siteId)
     formDataToSend.append('nik', formData.value.nik)
     formDataToSend.append('fullName', formData.value.fullName)
     formDataToSend.append('unitId', formData.value.unitId || '')
@@ -208,6 +247,7 @@ const handleDelete = async (id: string) => {
 // Load data on mount
 onMounted(() => {
   fetchEmployees()
+  fetchSites()
   fetchUnits()
 })
 </script>
@@ -226,17 +266,63 @@ onMounted(() => {
       </button>
     </div>
 
-    <!-- Search -->
-    <div class="mb-4">
-      <div class="relative">
-        <Search :size="20" class="absolute left-3 top-1/2 -translate-y-1/2 text-base-content/50" />
-        <input
-          v-model="searchQuery"
-          type="text"
-          placeholder="Search employees..."
-          class="input input-bordered w-full pl-10"
-        />
+    <!-- Filters -->
+    <div class="grid grid-cols-4 gap-4 mb-6">
+      <div>
+        <label class="label">
+          <span class="label-text">Site</span>
+        </label>
+        <select
+          v-model="filterSiteId"
+          @change="handleFilterChange"
+          class="select select-bordered w-full"
+        >
+          <option value="">All Sites</option>
+          <option v-for="site in sites" :key="site.id" :value="site.id">
+            {{ site.name }}
+          </option>
+        </select>
       </div>
+      <div>
+        <label class="label">
+          <span class="label-text">Unit</span>
+        </label>
+        <select
+          v-model="filterUnitId"
+          @change="handleFilterChange"
+          class="select select-bordered w-full"
+        >
+          <option value="">All Units</option>
+          <option v-for="unit in units" :key="unit.id" :value="unit.id">
+            {{ unit.name }}
+          </option>
+        </select>
+      </div>
+      <div class="col-span-2">
+        <label class="label">
+          <span class="label-text">Search</span>
+        </label>
+        <div class="relative">
+          <Search :size="20" class="absolute left-3 top-1/2 -translate-y-1/2 text-base-content/50" />
+          <input
+            v-model="searchQuery"
+            @input="handleSearch"
+            type="text"
+            placeholder="Search by NIK, Name, Identity, Phone..."
+            class="input input-bordered w-full pl-10"
+          />
+        </div>
+      </div>
+    </div>
+
+    <!-- Clear Filters -->
+    <div class="mb-4" v-if="filterSiteId || filterUnitId || searchQuery">
+      <button
+        @click="() => { filterSiteId = ''; filterUnitId = ''; searchQuery = ''; fetchEmployees() }"
+        class="btn btn-ghost btn-sm"
+      >
+        Clear All Filters
+      </button>
     </div>
 
     <!-- Table -->
@@ -246,40 +332,46 @@ onMounted(() => {
           <table class="table">
             <thead>
               <tr>
-                <th>Picture</th>
-                <th>NIK</th>
-                <th>Full Name</th>
+                <th>Employee</th>
+                <th>Site</th>
                 <th>Unit</th>
-                <th>Identity Number</th>
-                <th>Phone Number</th>
+                <th>Contact</th>
                 <th class="text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
               <tr v-if="loading">
-                <td colspan="7" class="text-center py-8">
+                <td colspan="5" class="text-center py-8">
                   <span class="loading loading-spinner loading-md"></span>
                 </td>
               </tr>
-              <tr v-else-if="filteredEmployees.length === 0">
-                <td colspan="7" class="text-center py-8 text-base-content/50">No employees found</td>
+              <tr v-else-if="employees.length === 0">
+                <td colspan="5" class="text-center py-8 text-base-content/50">No employees found</td>
               </tr>
-              <tr v-for="employee in filteredEmployees" :key="employee.id" class="hover">
+              <tr v-for="employee in employees" :key="employee.id" class="hover">
                 <td>
-                  <div class="avatar">
-                    <div class="w-10 h-10 rounded-full">
-                      <img v-if="employee.picture" :src="employee.picture" :alt="employee.fullName" />
-                      <div v-else class="bg-base-300 flex items-center justify-center w-full h-full">
-                        <span class="text-xs">{{ employee.fullName.charAt(0) }}</span>
+                  <div class="flex items-center gap-3">
+                    <div class="avatar">
+                      <div class="w-16 h-16 rounded-lg">
+                        <img v-if="employee.picture" :src="employee.picture" :alt="employee.fullName" />
+                        <div v-else class="bg-base-300 flex items-center justify-center w-full h-full">
+                          <span class="text-lg font-semibold">{{ employee.fullName.charAt(0) }}</span>
+                        </div>
                       </div>
+                    </div>
+                    <div>
+                      <div class="font-semibold">{{ employee.fullName }}</div>
+                      <div class="text-sm text-base-content/60">{{ employee.nik }}</div>
+                      <div v-if="employee.identityNumber" class="text-xs text-base-content/50">ID: {{ employee.identityNumber }}</div>
                     </div>
                   </div>
                 </td>
-                <td>{{ employee.nik }}</td>
-                <td class="font-medium">{{ employee.fullName }}</td>
+                <td>{{ employee.siteName || '-' }}</td>
                 <td>{{ employee.unitName || '-' }}</td>
-                <td>{{ employee.identityNumber || '-' }}</td>
-                <td>{{ employee.phoneNumber || '-' }}</td>
+                <td>
+                  <div v-if="employee.phoneNumber" class="text-sm">{{ employee.phoneNumber }}</div>
+                  <div v-else class="text-base-content/50">-</div>
+                </td>
                 <td class="text-right">
                   <div class="flex gap-2 justify-end">
                     <button @click="openEditModal(employee)" class="btn btn-sm btn-ghost">
@@ -306,6 +398,19 @@ onMounted(() => {
           </h3>
 
           <form @submit.prevent="handleSubmit" class="space-y-4">
+            <!-- Site -->
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text">Site <span class="text-error">*</span></span>
+              </label>
+              <select v-model="formData.siteId" class="select select-bordered" required>
+                <option value="">Select Site</option>
+                <option v-for="site in sites" :key="site.id" :value="site.id">
+                  {{ site.name }}
+                </option>
+              </select>
+            </div>
+
             <!-- Picture Upload -->
             <div class="form-control">
               <label class="label">

@@ -17,6 +17,7 @@ export default defineEventHandler(async (event) => {
     const updatedDivision = await db
       .update(divisions)
       .set({
+        siteId: body.siteId,
         code: body.code,
         name: body.name,
         description: body.description || null,

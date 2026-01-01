@@ -1,5 +1,5 @@
 import { db } from '../../database'
-import { units, divisions, employees } from '../../database/schema'
+import { units, divisions, employees, sites } from '../../database/schema'
 import { eq } from 'drizzle-orm'
 
 export default defineEventHandler(async (event) => {
@@ -7,6 +7,7 @@ export default defineEventHandler(async (event) => {
     const allUnits = await db
       .select({
         id: units.id,
+        siteId: units.siteId,
         unitCode: units.unitCode,
         divisionId: units.divisionId,
         name: units.name,
@@ -15,10 +16,12 @@ export default defineEventHandler(async (event) => {
         headOfUnit: units.headOfUnit,
         createdAt: units.createdAt,
         updatedAt: units.updatedAt,
+        siteName: sites.name,
         divisionName: divisions.name,
         headOfUnitName: employees.fullName,
       })
       .from(units)
+      .leftJoin(sites, eq(units.siteId, sites.id))
       .leftJoin(divisions, eq(units.divisionId, divisions.id))
       .leftJoin(employees, eq(units.headOfUnit, employees.id))
       .orderBy(units.createdAt)

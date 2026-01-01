@@ -5,6 +5,11 @@ definePageMeta({
   layout: 'dashboard',
 })
 
+interface Site {
+  id: string
+  name: string
+}
+
 interface Division {
   id: string
   name: string
@@ -17,6 +22,7 @@ interface Employee {
 
 interface Unit {
   id: string
+  siteId: string | null
   unitCode: string
   divisionId: string | null
   name: string
@@ -25,12 +31,14 @@ interface Unit {
   headOfUnit: string | null
   createdAt: Date
   updatedAt: Date
+  siteName?: string | null
   divisionName?: string | null
   headOfUnitName?: string | null
 }
 
 // State
 const units = ref<Unit[]>([])
+const sites = ref<Site[]>([])
 const divisions = ref<Division[]>([])
 const employees = ref<Employee[]>([])
 const loading = ref(false)
@@ -41,6 +49,7 @@ const searchQuery = ref('')
 
 // Form data
 const formData = ref({
+  siteId: '',
   unitCode: '',
   divisionId: '',
   name: '',
@@ -77,6 +86,18 @@ const fetchUnits = async () => {
   }
 }
 
+// Fetch sites
+const fetchSites = async () => {
+  try {
+    const response = await $fetch<{ success: boolean; data: Site[] }>('/api/sites')
+    if (response.success) {
+      sites.value = response.data
+    }
+  } catch (error) {
+    console.error('Failed to fetch sites:', error)
+  }
+}
+
 // Fetch divisions
 const fetchDivisions = async () => {
   try {
@@ -106,6 +127,7 @@ const openCreateModal = () => {
   isEditMode.value = false
   editingId.value = null
   formData.value = {
+    siteId: '',
     unitCode: '',
     divisionId: '',
     name: '',
@@ -121,6 +143,7 @@ const openEditModal = (unit: Unit) => {
   isEditMode.value = true
   editingId.value = unit.id
   formData.value = {
+    siteId: unit.siteId || '',
     unitCode: unit.unitCode,
     divisionId: unit.divisionId || '',
     name: unit.name,
@@ -135,6 +158,7 @@ const openEditModal = (unit: Unit) => {
 const closeModal = () => {
   modalOpen.value = false
   formData.value = {
+    siteId: '',
     unitCode: '',
     divisionId: '',
     name: '',
@@ -210,6 +234,7 @@ const handleDelete = async (id: string) => {
 // Load data on mount
 onMounted(() => {
   fetchUnits()
+  fetchSites()
   fetchDivisions()
   fetchEmployees()
 })
@@ -298,6 +323,19 @@ onMounted(() => {
           </h3>
 
           <form @submit.prevent="handleSubmit" class="space-y-4">
+            <!-- Site -->
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text">Site <span class="text-error">*</span></span>
+              </label>
+              <select v-model="formData.siteId" class="select select-bordered" required>
+                <option value="">Select Site</option>
+                <option v-for="site in sites" :key="site.id" :value="site.id">
+                  {{ site.name }}
+                </option>
+              </select>
+            </div>
+
             <!-- Unit Code -->
             <div class="form-control">
               <label class="label">

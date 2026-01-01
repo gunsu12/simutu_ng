@@ -5,17 +5,25 @@ definePageMeta({
   layout: 'dashboard',
 })
 
+interface Site {
+  id: string
+  name: string
+}
+
 interface Division {
   id: string
+  siteId: string | null
   code: string
   name: string
   description: string | null
   createdAt: Date
   updatedAt: Date
+  siteName?: string | null
 }
 
 // State
 const divisions = ref<Division[]>([])
+const sites = ref<Site[]>([])
 const loading = ref(false)
 const modalOpen = ref(false)
 const isEditMode = ref(false)
@@ -24,6 +32,7 @@ const searchQuery = ref('')
 
 // Form data
 const formData = ref({
+  siteId: '',
   code: '',
   name: '',
   description: '',
@@ -56,11 +65,24 @@ const fetchDivisions = async () => {
   }
 }
 
+// Fetch sites
+const fetchSites = async () => {
+  try {
+    const response = await $fetch<{ success: boolean; data: Site[] }>('/api/sites')
+    if (response.success) {
+      sites.value = response.data
+    }
+  } catch (error) {
+    console.error('Failed to fetch sites:', error)
+  }
+}
+
 // Open modal for create
 const openCreateModal = () => {
   isEditMode.value = false
   editingId.value = null
   formData.value = {
+    siteId: '',
     code: '',
     name: '',
     description: '',
@@ -73,6 +95,7 @@ const openEditModal = (division: Division) => {
   isEditMode.value = true
   editingId.value = division.id
   formData.value = {
+    siteId: division.siteId || '',
     code: division.code,
     name: division.name,
     description: division.description || '',
@@ -84,6 +107,7 @@ const openEditModal = (division: Division) => {
 const closeModal = () => {
   modalOpen.value = false
   formData.value = {
+    siteId: '',
     code: '',
     name: '',
     description: '',
@@ -146,6 +170,7 @@ const handleDelete = async (id: string) => {
 // Load data on mount
 onMounted(() => {
   fetchDivisions()
+  fetchSites()
 })
 </script>
 
@@ -230,6 +255,19 @@ onMounted(() => {
           </h3>
 
           <form @submit.prevent="handleSubmit" class="space-y-4">
+            <!-- Site -->
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text">Site <span class="text-error">*</span></span>
+              </label>
+              <select v-model="formData.siteId" class="select select-bordered" required>
+                <option value="">Select Site</option>
+                <option v-for="site in sites" :key="site.id" :value="site.id">
+                  {{ site.name }}
+                </option>
+              </select>
+            </div>
+
             <!-- Code -->
             <div class="form-control">
               <label class="label">

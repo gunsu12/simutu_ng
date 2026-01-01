@@ -5,6 +5,7 @@ export default defineEventHandler(async (event) => {
   try {
     const formData = await readFormData(event)
     
+    const siteId = formData.get('siteId') as string
     const nik = formData.get('nik') as string
     const fullName = formData.get('fullName') as string
     const unitId = formData.get('unitId') as string
@@ -18,6 +19,7 @@ export default defineEventHandler(async (event) => {
     }
     
     const newEmployee = await db.insert(employees).values({
+      siteId,
       nik,
       fullName,
       unitId: unitId || null,

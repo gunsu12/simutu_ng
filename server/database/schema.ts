@@ -17,6 +17,7 @@ export const sites = pgTable('sites', {
 
 export const divisions = pgTable('divisions', {
   id: uuid('id').defaultRandom().primaryKey(),
+  siteId: uuid('site_id').notNull().references(() => sites.id, { onDelete: 'cascade' }),
   code: text('code').notNull().unique(),
   name: text('name').notNull(),
   description: text('description'),
@@ -26,6 +27,7 @@ export const divisions = pgTable('divisions', {
 
 export const employees = pgTable('employees', {
   id: uuid('id').defaultRandom().primaryKey(),
+  siteId: uuid('site_id').notNull().references(() => sites.id, { onDelete: 'cascade' }),
   nik: text('nik').notNull().unique(),
   fullName: text('full_name').notNull(),
   unitId: uuid('unit_id'),
@@ -38,6 +40,7 @@ export const employees = pgTable('employees', {
 
 export const units = pgTable('units', {
   id: uuid('id').defaultRandom().primaryKey(),
+  siteId: uuid('site_id').notNull().references(() => sites.id, { onDelete: 'cascade' }),
   unitCode: text('unit_code').notNull().unique(),
   divisionId: uuid('division_id').notNull().references(() => divisions.id, { onDelete: 'cascade' }),
   name: text('name').notNull(),

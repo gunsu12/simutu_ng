@@ -6,6 +6,7 @@ export default defineEventHandler(async (event) => {
     const body = await readBody(event)
     
     const newDivision = await db.insert(divisions).values({
+      siteId: body.siteId,
       code: body.code,
       name: body.name,
       description: body.description || null,

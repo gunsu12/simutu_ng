@@ -28,6 +28,7 @@ export default defineEventHandler(async (event) => {
       }
     }
     
+    const siteId = formData.get('siteId') as string
     const nik = formData.get('nik') as string
     const fullName = formData.get('fullName') as string
     const unitId = formData.get('unitId') as string
@@ -47,6 +48,7 @@ export default defineEventHandler(async (event) => {
     const updatedEmployee = await db
       .update(employees)
       .set({
+        siteId,
         nik,
         fullName,
         unitId: unitId || null,
