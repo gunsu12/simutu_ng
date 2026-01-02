@@ -1,5 +1,6 @@
 import { db } from '../../database'
 import { employees } from '../../database/schema'
+import { uploadImageWithThumbnail } from '../../utils/s3'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -13,9 +14,13 @@ export default defineEventHandler(async (event) => {
     const phoneNumber = formData.get('phoneNumber') as string
     const pictureFile = formData.get('picture') as File | null
     
-    let pictureUrl = null
+    let pictureKey: string | null = null
+    let pictureThumbnailKey: string | null = null
+    
     if (pictureFile && pictureFile.size > 0) {
-      pictureUrl = await uploadFile(pictureFile, 'employees/pictures')
+      const { originalKey, thumbnailKey } = await uploadImageWithThumbnail(pictureFile, 'employees/pictures')
+      pictureKey = originalKey
+      pictureThumbnailKey = thumbnailKey
     }
     
     const newEmployee = await db.insert(employees).values({
@@ -25,7 +30,8 @@ export default defineEventHandler(async (event) => {
       unitId: unitId || null,
       identityNumber: identityNumber || null,
       phoneNumber: phoneNumber || null,
-      picture: pictureUrl,
+      picture: pictureKey,
+      pictureThumbnail: pictureThumbnailKey,
     }).returning()
     
     return {

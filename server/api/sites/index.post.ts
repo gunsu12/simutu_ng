@@ -1,6 +1,6 @@
 import { db } from '../../database'
 import { sites } from '../../database/schema'
-import { uploadFile } from '../../utils/s3'
+import { uploadImageWithThumbnail } from '../../utils/s3'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -16,10 +16,13 @@ export default defineEventHandler(async (event) => {
     const fax = formData.get('fax') as string
     const logoFile = formData.get('siteLogo') as File | null
     
-    let siteLogo: string | undefined
+    let siteLogo: string | null = null
+    let siteLogoThumbnail: string | null = null
     
     if (logoFile && logoFile.size > 0) {
-      siteLogo = await uploadFile(logoFile, 'sites/logos')
+      const { originalKey, thumbnailKey } = await uploadImageWithThumbnail(logoFile, 'sites/logos')
+      siteLogo = originalKey
+      siteLogoThumbnail = thumbnailKey
     }
     
     const newSite = await db.insert(sites).values({
@@ -31,7 +34,8 @@ export default defineEventHandler(async (event) => {
       website: website || null,
       phone: phone || null,
       fax: fax || null,
-      siteLogo: siteLogo || null,
+      siteLogo,
+      siteLogoThumbnail,
     }).returning()
     
     return {

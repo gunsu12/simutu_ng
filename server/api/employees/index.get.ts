@@ -1,6 +1,24 @@
 import { db } from '../../database'
 import { employees, units, sites } from '../../database/schema'
 import { eq, and, or, ilike, isNull } from 'drizzle-orm'
+import { generateFileUrl } from '../../utils/s3'
+
+/**
+ * Extract S3 key from stored value.
+ * Handles both old format (full URL) and new format (key only).
+ */
+function extractS3Key(storedValue: string | null): string | null {
+  if (!storedValue) return null
+  
+  // If it's already a key (no http), return as-is
+  if (!storedValue.includes('http')) {
+    return storedValue
+  }
+  
+  // Extract key from full URL (remove query string, get last 3 path segments)
+  const urlParts = storedValue.split('?')[0]
+  return urlParts.split('/').slice(-3).join('/')
+}
 
 export default defineEventHandler(async (event) => {
   try {
@@ -51,18 +69,25 @@ export default defineEventHandler(async (event) => {
       )
     }
     
-    // Generate presigned URLs for pictures
+    // Generate presigned URLs for pictures (use thumbnail for list view)
     const employeesWithSignedUrls = await Promise.all(
       allEmployees.map(async (employee) => {
-        if (employee.picture) {
+        // Use thumbnail for list view
+        const thumbnailKey = extractS3Key(employee.pictureThumbnail)
+        if (thumbnailKey) {
           try {
-            // Extract the key from the signed URL (get the path before the query string)
-            const urlParts = employee.picture.split('?')[0]
-            const key = urlParts.split('/').slice(-3).join('/')  // Get 'employees/pictures/filename.png'
-            if (key) {
-              const signedUrl = await getPresignedUrl(key)
-              return { ...employee, picture: signedUrl }
-            }
+            const signedUrl = await generateFileUrl(thumbnailKey)
+            return { ...employee, picture: signedUrl }
+          } catch (error) {
+            console.error('Error generating presigned URL:', error)
+          }
+        }
+        // Fallback to original if no thumbnail (backward compatibility)
+        const key = extractS3Key(employee.picture)
+        if (key) {
+          try {
+            const signedUrl = await generateFileUrl(key)
+            return { ...employee, picture: signedUrl }
           } catch (error) {
             console.error('Error generating presigned URL:', error)
           }

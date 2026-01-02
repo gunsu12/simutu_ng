@@ -1,4 +1,4 @@
-import { uploadFile } from '../utils/s3'
+import { uploadFile, generateFileUrl } from '../utils/s3'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -39,11 +39,16 @@ export default defineEventHandler(async (event) => {
       }
     }
 
-    const fileUrl = await uploadFile(file, folder)
+    // uploadFile now returns S3 key (not URL)
+    const fileKey = await uploadFile(file, folder)
+    
+    // Generate presigned URL for immediate display
+    const displayUrl = await generateFileUrl(fileKey)
     
     return {
       success: true,
-      url: fileUrl,
+      key: fileKey,        // Store this in database
+      url: displayUrl,     // Use this for immediate display
       message: 'File uploaded successfully',
     }
   } catch (error: any) {

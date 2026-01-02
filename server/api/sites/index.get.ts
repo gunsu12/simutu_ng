@@ -1,7 +1,24 @@
 import { db } from '../../database'
 import { sites } from '../../database/schema'
 import { asc, isNull } from 'drizzle-orm'
-import { getPresignedUrl } from '../../utils/s3'
+import { generateFileUrl } from '../../utils/s3'
+
+/**
+ * Extract S3 key from stored value.
+ * Handles both old format (full URL) and new format (key only).
+ */
+function extractS3Key(storedValue: string | null): string | null {
+  if (!storedValue) return null
+  
+  // If it's already a key (no http), return as-is
+  if (!storedValue.includes('http')) {
+    return storedValue
+  }
+  
+  // Extract key from full URL (remove query string, get last 3 path segments)
+  const urlParts = storedValue.split('?')[0]
+  return urlParts.split('/').slice(-3).join('/')
+}
 
 export default defineEventHandler(async (event) => {
   try {
@@ -11,23 +28,28 @@ export default defineEventHandler(async (event) => {
       .where(isNull(sites.deletedAt))
       .orderBy(sites.createdAt)
     
-    // Generate signed URLs for logos
+    // Generate signed URLs for logos (use thumbnail for list view)
     const sitesWithSignedUrls = await Promise.all(
       allSites.map(async (site) => {
-        if (site.siteLogo) {
-          // Extract key from URL (handle both old and new format)
-          let key = site.siteLogo
-          if (key.includes('http')) {
-            const urlParts = key.split('?')[0]
-            key = urlParts.split('/').slice(-3).join('/')
-          }
-          
+        // Use thumbnail for list view
+        const thumbnailKey = extractS3Key(site.siteLogoThumbnail)
+        if (thumbnailKey) {
           try {
-            const signedUrl = await getPresignedUrl(key, 604800)
+            const signedUrl = await generateFileUrl(thumbnailKey)
+            return { ...site, siteLogo: signedUrl }
+          } catch (error) {
+            console.error('Error generating signed URL for', thumbnailKey, error)
+            return site
+          }
+        }
+        // Fallback to original if no thumbnail (backward compatibility)
+        const key = extractS3Key(site.siteLogo)
+        if (key) {
+          try {
+            const signedUrl = await generateFileUrl(key)
             return { ...site, siteLogo: signedUrl }
           } catch (error) {
             console.error('Error generating signed URL for', key, error)
-            return site
           }
         }
         return site

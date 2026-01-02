@@ -1,7 +1,24 @@
 import { db } from '../../database'
 import { sites } from '../../database/schema'
 import { eq } from 'drizzle-orm'
-import { uploadFile, deleteFile } from '../../utils/s3'
+import { uploadImageWithThumbnail, deleteFile } from '../../utils/s3'
+
+/**
+ * Extract S3 key from stored value.
+ * Handles both old format (full URL) and new format (key only).
+ */
+function extractS3Key(storedValue: string | null): string | null {
+  if (!storedValue) return null
+  
+  // If it's already a key (no http), return as-is
+  if (!storedValue.includes('http')) {
+    return storedValue
+  }
+  
+  // Extract key from full URL (remove query string, get last 3 path segments)
+  const urlParts = storedValue.split('?')[0]
+  return urlParts.split('/').slice(-3).join('/')
+}
 
 export default defineEventHandler(async (event) => {
   try {
@@ -25,19 +42,27 @@ export default defineEventHandler(async (event) => {
     const phone = formData.get('phone') as string
     const fax = formData.get('fax') as string
     const logoFile = formData.get('siteLogo') as File | null
-    const oldLogoUrl = formData.get('oldSiteLogo') as string | null
+    const oldLogoValue = formData.get('oldSiteLogo') as string | null
+    const oldLogoThumbnailValue = formData.get('oldSiteLogoThumbnail') as string | null
     
-    let siteLogo: string | undefined = oldLogoUrl || undefined
+    // Start with existing keys
+    let siteLogoKey: string | null = extractS3Key(oldLogoValue)
+    let siteLogoThumbnailKey: string | null = extractS3Key(oldLogoThumbnailValue)
     
     // If new logo file is uploaded
     if (logoFile && logoFile.size > 0) {
-      // Delete old logo if exists
-      if (oldLogoUrl) {
-        await deleteFile(oldLogoUrl).catch(console.error)
+      // Delete old images if exist
+      if (siteLogoKey) {
+        await deleteFile(siteLogoKey).catch(console.error)
+      }
+      if (siteLogoThumbnailKey) {
+        await deleteFile(siteLogoThumbnailKey).catch(console.error)
       }
       
-      // Upload new logo
-      siteLogo = await uploadFile(logoFile, 'sites/logos')
+      // Upload new logo and thumbnail
+      const { originalKey, thumbnailKey } = await uploadImageWithThumbnail(logoFile, 'sites/logos')
+      siteLogoKey = originalKey
+      siteLogoThumbnailKey = thumbnailKey
     }
     
     const updatedSite = await db
@@ -51,7 +76,8 @@ export default defineEventHandler(async (event) => {
         website: website || null,
         phone: phone || null,
         fax: fax || null,
-        siteLogo: siteLogo || null,
+        siteLogo: siteLogoKey,
+        siteLogoThumbnail: siteLogoThumbnailKey,
         updatedAt: new Date(),
       })
       .where(eq(sites.id, id))

@@ -1,7 +1,24 @@
 import { db } from '../../database'
 import { sites } from '../../database/schema'
 import { eq } from 'drizzle-orm'
-import { getPresignedUrl } from '../../utils/s3'
+import { generateFileUrl } from '../../utils/s3'
+
+/**
+ * Extract S3 key from stored value.
+ * Handles both old format (full URL) and new format (key only).
+ */
+function extractS3Key(storedValue: string | null): string | null {
+  if (!storedValue) return null
+  
+  // If it's already a key (no http), return as-is
+  if (!storedValue.includes('http')) {
+    return storedValue
+  }
+  
+  // Extract key from full URL (remove query string, get last 3 path segments)
+  const urlParts = storedValue.split('?')[0]
+  return urlParts.split('/').slice(-3).join('/')
+}
 
 export default defineEventHandler(async (event) => {
   try {
@@ -25,16 +42,11 @@ export default defineEventHandler(async (event) => {
     
     let siteData = site[0]
     
-    // Generate signed URL for logo if exists
-    if (siteData.siteLogo) {
-      let key = siteData.siteLogo
-      if (key.includes('http')) {
-        const urlParts = key.split('?')[0]
-        key = urlParts.split('/').slice(-3).join('/')
-      }
-      
+    // Generate signed URL for logo if exists (use original for detail view)
+    const key = extractS3Key(siteData.siteLogo)
+    if (key) {
       try {
-        const signedUrl = await getPresignedUrl(key, 604800)
+        const signedUrl = await generateFileUrl(key)
         siteData = { ...siteData, siteLogo: signedUrl }
       } catch (error) {
         console.error('Error generating signed URL:', error)

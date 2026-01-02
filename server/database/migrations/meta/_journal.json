@@ -50,6 +50,13 @@
       "when": 1767249991997,
       "tag": "0006_dashing_silhouette",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1767341537936,
+      "tag": "0007_add-thumbnail-fields",
+      "breakpoints": true
     }
   ]
 }

@@ -1,6 +1,24 @@
 import { db } from '../../database'
 import { employees } from '../../database/schema'
 import { eq } from 'drizzle-orm'
+import { uploadImageWithThumbnail, deleteFile } from '../../utils/s3'
+
+/**
+ * Extract S3 key from stored value.
+ * Handles both old format (full URL) and new format (key only).
+ */
+function extractS3Key(storedValue: string | null): string | null {
+  if (!storedValue) return null
+  
+  // If it's already a key (no http), return as-is
+  if (!storedValue.includes('http')) {
+    return storedValue
+  }
+  
+  // Extract key from full URL (remove query string, get last 3 path segments)
+  const urlParts = storedValue.split('?')[0]
+  return urlParts.split('/').slice(-3).join('/')
+}
 
 export default defineEventHandler(async (event) => {
   try {
@@ -36,13 +54,24 @@ export default defineEventHandler(async (event) => {
     const phoneNumber = formData.get('phoneNumber') as string
     const pictureFile = formData.get('picture') as File | null
     
-    let pictureUrl = existingEmployee[0].picture
+    let pictureKey = existingEmployee[0].picture
+    let pictureThumbnailKey = existingEmployee[0].pictureThumbnail
+    
     if (pictureFile && pictureFile.size > 0) {
-      // Delete old picture if exists
-      if (pictureUrl) {
-        await deleteFile(pictureUrl)
+      // Delete old pictures if exist
+      const oldKey = extractS3Key(pictureKey)
+      const oldThumbKey = extractS3Key(pictureThumbnailKey)
+      
+      if (oldKey) {
+        await deleteFile(oldKey).catch(console.error)
       }
-      pictureUrl = await uploadFile(pictureFile, 'employees/pictures')
+      if (oldThumbKey) {
+        await deleteFile(oldThumbKey).catch(console.error)
+      }
+      
+      const { originalKey, thumbnailKey } = await uploadImageWithThumbnail(pictureFile, 'employees/pictures')
+      pictureKey = originalKey
+      pictureThumbnailKey = thumbnailKey
     }
     
     const updatedEmployee = await db
@@ -54,7 +83,8 @@ export default defineEventHandler(async (event) => {
         unitId: unitId || null,
         identityNumber: identityNumber || null,
         phoneNumber: phoneNumber || null,
-        picture: pictureUrl,
+        picture: pictureKey,
+        pictureThumbnail: pictureThumbnailKey,
         updatedAt: new Date(),
       })
       .where(eq(employees.id, id))

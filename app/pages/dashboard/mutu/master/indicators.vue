@@ -291,7 +291,8 @@ const uploadDocument = async () => {
         if (xhr.status === 200) {
           const response = JSON.parse(xhr.responseText)
           if (response.success) {
-            resolve(response.url)
+            // Store the S3 key (not URL) in database - URLs are generated on-the-fly
+            resolve(response.key)
           } else {
             reject(new Error(response.message || 'Upload failed'))
           }

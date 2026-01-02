@@ -1,6 +1,24 @@
 import { db } from '../../database'
 import { indicators, indicatorCategories } from '../../database/schema'
 import { asc, eq, and, isNull } from 'drizzle-orm'
+import { generateFileUrl } from '../../utils/s3'
+
+/**
+ * Extract S3 key from stored value.
+ * Handles both old format (full URL) and new format (key only).
+ */
+function extractS3Key(storedValue: string | null): string | null {
+  if (!storedValue) return null
+  
+  // If it's already a key (no http), return as-is
+  if (!storedValue.includes('http')) {
+    return storedValue
+  }
+  
+  // Extract key from full URL (remove query string, get last 3 path segments)
+  const urlParts = storedValue.split('?')[0]
+  return urlParts.split('/').slice(-3).join('/')
+}
 
 export default defineEventHandler(async (event) => {
   try {
@@ -78,9 +96,25 @@ export default defineEventHandler(async (event) => {
 
     const result = await queryBuilder.orderBy(asc(indicators.code))
 
+    // Generate presigned URLs for document files
+    const indicatorsWithUrls = await Promise.all(
+      result.map(async (indicator) => {
+        const key = extractS3Key(indicator.documentFile)
+        if (key) {
+          try {
+            const signedUrl = await generateFileUrl(key)
+            return { ...indicator, documentFile: signedUrl }
+          } catch (error) {
+            console.error('Error generating signed URL for', key, error)
+          }
+        }
+        return indicator
+      })
+    )
+
     return {
       success: true,
-      data: result,
+      data: indicatorsWithUrls,
     }
   } catch (error: any) {
     console.error('Error fetching indicators:', error)
