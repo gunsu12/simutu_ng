@@ -1,4 +1,7 @@
 import { lucia } from '../../utils/auth'
+import { db } from '../../database'
+import { employees } from '../../database/schema'
+import { eq } from 'drizzle-orm'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -30,6 +33,20 @@ export default defineEventHandler(async (event) => {
       setCookie(event, sessionCookie.name, sessionCookie.value, sessionCookie.attributes)
     }
 
+    // Fetch employee's unitId if employeeId exists
+    let unitId = null
+    if (user.employeeId) {
+      const employee = await db
+        .select({ unitId: employees.unitId })
+        .from(employees)
+        .where(eq(employees.id, user.employeeId))
+        .limit(1)
+      
+      if (employee.length > 0) {
+        unitId = employee[0].unitId
+      }
+    }
+
     return {
       success: true,
       data: {
@@ -41,6 +58,7 @@ export default defineEventHandler(async (event) => {
           role: user.role,
           employeeId: user.employeeId,
           siteId: user.siteId,
+          unitId: unitId,
         },
         session: {
           id: session.id,

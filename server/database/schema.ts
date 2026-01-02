@@ -118,6 +118,37 @@ export const indicatorUnits = pgTable('indicator_units', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 })
 
+export const indicatorEntries = pgTable('indicator_entries', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  entryCode: text('entry_code').notNull().unique(),
+  unitId: uuid('unit_id').notNull().references(() => units.id, { onDelete: 'cascade' }),
+  entryDate: timestamp('entry_date').notNull(),
+  entryFrequency: text('entry_frequency').notNull(), // 'daily' or 'monthly'
+  notes: text('notes'),
+  status: text('status').notNull().default('proposed'), // 'proposed', 'checked', 'pending', 'finish'
+  createdBy: uuid('created_by').notNull().references(() => users.id, { onDelete: 'restrict' }),
+  updatedBy: uuid('updated_by').references(() => users.id, { onDelete: 'restrict' }),
+  auditorNotes: text('auditor_notes'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  deletedAt: timestamp('deleted_at'),
+})
+
+export const indicatorEntryItems = pgTable('indicator_entry_items', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  indicatorEntryId: uuid('indicator_entry_id').notNull().references(() => indicatorEntries.id, { onDelete: 'cascade' }),
+  indicatorId: uuid('indicator_id').notNull().references(() => indicators.id, { onDelete: 'cascade' }),
+  numeratorValue: numeric('numerator_value'),
+  denominatorValue: numeric('denominator_value'),
+  skor: numeric('skor'),
+  numeratorDenominatorResult: numeric('numerator_denominator_result'),
+  isAlreadyChecked: boolean('is_already_checked').default(false).notNull(),
+  isNeedPDCA: boolean('is_need_pdca').default(false).notNull(),
+  notes: text('notes'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+})
+
 export type Site = typeof sites.$inferSelect
 export type NewSite = typeof sites.$inferInsert
 
@@ -144,3 +175,9 @@ export type NewIndicator = typeof indicators.$inferInsert
 
 export type IndicatorUnit = typeof indicatorUnits.$inferSelect
 export type NewIndicatorUnit = typeof indicatorUnits.$inferInsert
+
+export type IndicatorEntry = typeof indicatorEntries.$inferSelect
+export type NewIndicatorEntry = typeof indicatorEntries.$inferInsert
+
+export type IndicatorEntryItem = typeof indicatorEntryItems.$inferSelect
+export type NewIndicatorEntryItem = typeof indicatorEntryItems.$inferInsert
