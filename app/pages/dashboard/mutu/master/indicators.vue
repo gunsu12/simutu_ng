@@ -43,7 +43,7 @@ interface Indicator {
   formula: string | null
   numerator: string | null
   denominator: string | null
-  target: string | null
+  target: number | null
   targetUnit: string | null
   targetKeterangan: string | null
   targetIsZero: boolean
@@ -92,8 +92,8 @@ const form = ref({
   formula: '',
   numerator: '',
   denominator: '',
-  target: '',
-  targetWeight: '',
+  target: 0 as number,
+  targetWeight: 0 as number,
   targetUnit: '',
   targetKeterangan: '',
   targetIsZero: false,
@@ -158,8 +158,8 @@ const resetForm = () => {
     formula: '',
     numerator: '',
     denominator: '',
-    target: '',
-    targetWeight: '',
+    target: 0,
+    targetWeight: 0,
     targetUnit: '',
     targetKeterangan: '',
     targetIsZero: false,
@@ -208,7 +208,7 @@ const openCreateModal = () => {
 const openEditModal = (indicator: Indicator) => {
   isEditing.value = true
   currentIndicator.value = indicator
-  form.value = {
+    form.value = {
     siteId: isAdmin.value ? '' : (user.value?.siteId || ''),
     indicatorCategoryId: indicator.indicatorCategoryId,
     code: indicator.code,
@@ -219,8 +219,8 @@ const openEditModal = (indicator: Indicator) => {
     formula: indicator.formula || '',
     numerator: indicator.numerator || '',
     denominator: indicator.denominator || '',
-    target: indicator.target || '',
-    targetWeight: indicator.targetWeight !== undefined && indicator.targetWeight !== null ? String(indicator.targetWeight) : '',
+    target: indicator.target !== undefined && indicator.target !== null ? Number(indicator.target) : 0,
+    targetWeight: indicator.targetWeight !== undefined && indicator.targetWeight !== null ? Number(indicator.targetWeight) : 0,
     targetUnit: indicator.targetUnit || '',
     targetKeterangan: indicator.targetKeterangan || '',
     targetIsZero: indicator.targetIsZero,
@@ -423,8 +423,8 @@ const saveIndicator = async () => {
   try {
     const payload = {
       ...form.value,
-      target: form.value.target ? parseFloat(form.value.target) : null,
-      targetWeight: form.value.targetWeight ? parseFloat(form.value.targetWeight) : 0,
+      target: Number(form.value.target),
+      targetWeight: form.value.targetWeight !== null && form.value.targetWeight !== undefined ? Number(form.value.targetWeight) : 0,
     }
 
     if (isEditing.value && currentIndicator.value) {
@@ -496,7 +496,7 @@ const toggleStatus = async (indicator: Indicator) => {
 }
 
 const formatTarget = (indicator: Indicator) => {
-  if (!indicator.target) return '-'
+  if (indicator.target === null || indicator.target === undefined) return '-'
   const unit = indicator.targetUnit === 'percentage' ? '%' : indicator.targetUnit === 'day' ? ' hari' : ''
   const comparison = indicator.targetKeterangan || ''
   return `${comparison} ${indicator.target}${unit}`
@@ -827,7 +827,7 @@ const formatTarget = (indicator: Indicator) => {
                   <span class="label-text">Target</span>
                 </label>
                 <input
-                  v-model="form.target"
+                  v-model.number="form.target"
                   type="number"
                   step="0.01"
                   placeholder="90"
@@ -867,7 +867,7 @@ const formatTarget = (indicator: Indicator) => {
                 <span class="label-text">Target Weight <span class="text-error">*</span></span>
               </label>
               <input
-                v-model="form.targetWeight"
+                v-model.number="form.targetWeight"
                 type="number"
                 step="0.01"
                 placeholder="0"

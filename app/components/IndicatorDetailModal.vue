@@ -98,7 +98,7 @@ const formatTarget = (ind: Indicator) => {
 
 <template>
   <Teleport to="body">
-    <dialog :class="['modal', { 'modal-open': isOpen }]" :open="isOpen">
+    <dialog :class="['modal', { 'modal-open': isOpen }]" :open="isOpen" style="z-index: 10000">
       <div class="modal-box max-w-3xl">
         <button type="button" class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" @click="closeModal">✕</button>
         <h3 class="font-bold text-lg mb-4">Detail Indikator</h3>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Plus, Search, Edit, Trash2, Calendar } from 'lucide-vue-next'
+import { Plus, Search, Edit, Trash2, Calendar, Eye } from 'lucide-vue-next'
 
 // Transition styles for notifications
 const notificationTransition = `
@@ -538,6 +538,12 @@ onMounted(() => {
 
 <template>
   <div class="space-y-6">
+    <!-- Indicator Detail Modal (rendered at top for proper z-index/ordering) -->
+    <IndicatorDetailModal
+      :indicator-id="selectedIndicatorId"
+      :is-open="showDetailModal"
+      @close="closeDetailModal"
+    />
     <!-- Header -->
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
       <div>
@@ -915,12 +921,7 @@ onMounted(() => {
       </dialog>
     </Teleport>
 
-    <!-- Indicator Detail Modal -->
-    <IndicatorDetailModal
-      :indicator-id="selectedIndicatorId"
-      :is-open="showDetailModal"
-      @close="closeDetailModal"
-    />
+    <!-- (moved to top of template) -->
 
     <!-- Calculated Indicators Modal -->
     <div v-if="showCalculatedModal" class="fixed inset-0 z-[9999] overflow-y-auto">
@@ -934,7 +935,7 @@ onMounted(() => {
             Calculated Indicators - {{ selectedCalculatedEntry?.entryCode }}
           </h2>
           <p class="text-base-content/60 mb-4">
-            Entry Date: {{ selectedCalculatedEntry?.entryDate ? new Date(selectedCalculatedEntry.entryDate).toLocaleDateString() : 'N/A' }}
+            Entry Date: {{ selectedCalculatedEntry?.entryDate ? new Date(selectedCalculatedEntry.entryDate).toLocaleDateString() : 'N/A' }} - Frequency: {{ selectedCalculatedEntry?.entryFrequency }} - Status: {{ selectedCalculatedEntry?.status }}
           </p>
 
           <div v-if="selectedCalculatedEntry?.items && selectedCalculatedEntry.items.length > 0" class="space-y-4">
@@ -950,10 +951,20 @@ onMounted(() => {
                     <h4 class="font-bold text-base">{{ item.indicator?.code }} - {{ item.indicator?.judul }}</h4>
                     <p class="text-sm text-base-content/60 mt-1">{{ item.notes || 'No notes' }}</p>
                   </div>
-                  <div class="flex gap-2">
+                  <div class="flex gap-2 items-center">
                     <span v-if="item.isAlreadyChecked" class="badge badge-success">Checked</span>
                     <span v-if="item.isNeedPDCA" class="badge badge-warning">Needs PDCA</span>
+                    <button
+                      v-if="item.indicator?.id"
+                      type="button"
+                      class="btn btn-ghost btn-sm btn-square"
+                      :title="`View ${item.indicator?.code || 'Indicator'} Details`"
+                      @click="openDetailModal(item.indicator.id)"
+                    >
+                      <Eye class="w-4 h-4" />
+                    </button>
                   </div>
+                  
                 </div>
 
                 <div class="divider my-2"></div>
