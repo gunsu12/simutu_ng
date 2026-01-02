@@ -38,6 +38,7 @@ const emit = defineEmits<{
 }>()
 
 const route = useRoute()
+const { user } = useAuth()
 
 // Track expanded menus - initialize with reactive state
 const expandedMenus = ref<Set<string>>(new Set())
@@ -96,6 +97,53 @@ const menuItems: MenuItem[] = [
 const bottomMenuItems: MenuItem[] = [
   { name: 'Help & Support', path: '/dashboard/help', icon: HelpCircle }
 ]
+
+// Filter menu items based on user role
+const filteredMenuItems = computed(() => {
+  if (!user.value) return []
+  
+  // Admin can see everything
+  if (user.value.role === 'admin') {
+    return menuItems
+  }
+  
+  // User, Manager, and Auditor can only see Mutu and Settings
+  // They cannot see Master Data menu
+  return menuItems.filter(item => {
+    // Show Dashboard
+    if (item.name === 'Dashboard') return true
+    
+    // Show Mutu menu
+    if (item.name === 'Mutu') {
+      // For 'user' role, hide the Master submenu inside Mutu
+      if (user.value?.role === 'user' && item.children) {
+        // Clone the item and filter out Master
+        const filteredMutu = { ...item }
+        filteredMutu.children = item.children.filter(child => child.name !== 'Master')
+        return true
+      }
+      // Manager and Auditor see all Mutu items including Master
+      return true
+    }
+    
+    // Show Settings menu
+    if (item.name === 'Setting') return true
+    
+    // Hide Master Data menu for non-admin users
+    if (item.name === 'Master Data') return false
+    
+    return true
+  }).map(item => {
+    // Apply the filtering for Mutu menu's children for 'user' role
+    if (item.name === 'Mutu' && user.value?.role === 'user' && item.children) {
+      return {
+        ...item,
+        children: item.children.filter(child => child.name !== 'Master')
+      }
+    }
+    return item
+  })
+})
 
 const isActive = (path?: string) => {
   if (!path) return false
@@ -208,7 +256,7 @@ watch(() => route.path, () => {
       <!-- Navigation -->
       <nav class="flex-1 px-3 py-4 overflow-y-auto">
         <ul class="menu menu-sm gap-1">
-          <template v-for="item in menuItems" :key="item.name">
+          <template v-for="item in filteredMenuItems" :key="item.name">
             <!-- Menu item with children -->
             <li v-if="item.children">
               <div

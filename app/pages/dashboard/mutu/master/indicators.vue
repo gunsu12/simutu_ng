@@ -49,6 +49,7 @@ interface Indicator {
   targetIsZero: boolean
   targetCalculationFormula: string | null
   documentFile: string | null
+  targetWeight?: number | null
   entryFrequency: string
   isActive: boolean
   createdAt: string
@@ -64,6 +65,7 @@ const searchQuery = ref('')
 const filterCategoryId = ref('')
 const showModal = ref(false)
 const showDetailModal = ref(false)
+const detailIndicatorId = ref('')
 const showUnitsModal = ref(false)
 const isEditing = ref(false)
 const currentIndicator = ref<Indicator | null>(null)
@@ -91,6 +93,7 @@ const form = ref({
   numerator: '',
   denominator: '',
   target: '',
+  targetWeight: '',
   targetUnit: '',
   targetKeterangan: '',
   targetIsZero: false,
@@ -156,6 +159,7 @@ const resetForm = () => {
     numerator: '',
     denominator: '',
     target: '',
+    targetWeight: '',
     targetUnit: '',
     targetKeterangan: '',
     targetIsZero: false,
@@ -216,6 +220,7 @@ const openEditModal = (indicator: Indicator) => {
     numerator: indicator.numerator || '',
     denominator: indicator.denominator || '',
     target: indicator.target || '',
+    targetWeight: indicator.targetWeight !== undefined && indicator.targetWeight !== null ? String(indicator.targetWeight) : '',
     targetUnit: indicator.targetUnit || '',
     targetKeterangan: indicator.targetKeterangan || '',
     targetIsZero: indicator.targetIsZero,
@@ -228,8 +233,18 @@ const openEditModal = (indicator: Indicator) => {
 }
 
 const openDetailModal = (indicator: Indicator) => {
-  currentIndicator.value = indicator
+  detailIndicatorId.value = indicator.id
   showDetailModal.value = true
+}
+
+const closeDetailModal = () => {
+  showDetailModal.value = false
+  detailIndicatorId.value = ''
+}
+
+const handleEditFromDetail = (indicator: Indicator) => {
+  closeDetailModal()
+  openEditModal(indicator)
 }
 
 const closeModal = () => {
@@ -391,11 +406,6 @@ const removeUnitFromIndicator = async (indicatorUnitId: string) => {
   }
 }
 
-const closeDetailModal = () => {
-  showDetailModal.value = false
-  currentIndicator.value = null
-}
-
 const saveIndicator = async () => {
   if (!form.value.indicatorCategoryId || !form.value.code.trim() || !form.value.judul.trim()) {
     errorMessage.value = 'Category, Code, and Judul are required'
@@ -413,7 +423,8 @@ const saveIndicator = async () => {
   try {
     const payload = {
       ...form.value,
-      target: form.value.target ? parseFloat(form.value.target) : null
+      target: form.value.target ? parseFloat(form.value.target) : null,
+      targetWeight: form.value.targetWeight ? parseFloat(form.value.targetWeight) : 0,
     }
 
     if (isEditing.value && currentIndicator.value) {
@@ -849,6 +860,25 @@ const formatTarget = (indicator: Indicator) => {
                   <option value="<=">&lt;= (Less or equal)</option>
                 </select>
               </div>
+              
+
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text">Target Weight <span class="text-error">*</span></span>
+              </label>
+              <input
+                v-model="form.targetWeight"
+                type="number"
+                step="0.01"
+                placeholder="0"
+                class="input input-bordered"
+                :disabled="saving"
+                required
+              />
+              <label class="label">
+                <span class="label-text-alt">Relative weight for this indicator (numeric, default 0)</span>
+              </label>
+            </div>
             </div>
 
             <div class="form-control">
@@ -1020,117 +1050,12 @@ const formatTarget = (indicator: Indicator) => {
       </dialog>
     </Teleport>
 
-    <!-- Detail Modal -->
-    <Teleport to="body">
-      <dialog :class="['modal', { 'modal-open': showDetailModal }]" :open="showDetailModal">
-        <div class="modal-box max-w-3xl">
-          <button type="button" class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" @click="closeDetailModal">✕</button>
-          <h3 class="font-bold text-lg mb-4">Detail Indikator</h3>
-          
-          <div v-if="currentIndicator" class="space-y-4">
-            <div class="grid grid-cols-2 gap-4">
-              <div>
-                <label class="text-sm text-base-content/60">Code</label>
-                <p class="font-mono font-medium">{{ currentIndicator.code }}</p>
-              </div>
-              <div>
-                <label class="text-sm text-base-content/60">Category</label>
-                <p class="font-medium">{{ currentIndicator.categoryName }}</p>
-              </div>
-            </div>
-
-            <div>
-              <label class="text-sm text-base-content/60">Judul</label>
-              <p class="font-medium">{{ currentIndicator.judul }}</p>
-            </div>
-
-            <div v-if="currentIndicator.dimensiMutu">
-              <label class="text-sm text-base-content/60">Dimensi Mutu</label>
-              <p>{{ currentIndicator.dimensiMutu }}</p>
-            </div>
-
-            <div v-if="currentIndicator.tujuan">
-              <label class="text-sm text-base-content/60">Tujuan</label>
-              <p class="whitespace-pre-wrap">{{ currentIndicator.tujuan }}</p>
-            </div>
-
-            <div v-if="currentIndicator.definisiOperasional">
-              <label class="text-sm text-base-content/60">Definisi Operasional</label>
-              <p class="whitespace-pre-wrap">{{ currentIndicator.definisiOperasional }}</p>
-            </div>
-
-            <div class="divider">Formula & Target</div>
-
-            <div class="grid grid-cols-3 gap-4">
-              <div>
-                <label class="text-sm text-base-content/60">Numerator</label>
-                <p>{{ currentIndicator.numerator || '-' }}</p>
-              </div>
-              <div>
-                <label class="text-sm text-base-content/60">Denominator</label>
-                <p>{{ currentIndicator.denominator || '-' }}</p>
-              </div>
-              <div>
-                <label class="text-sm text-base-content/60">Calculation Formula</label>
-                <p class="font-mono">{{ currentIndicator.targetCalculationFormula || '-' }}</p>
-              </div>
-            </div>
-
-            <div v-if="currentIndicator.formula">
-              <label class="text-sm text-base-content/60">Formula Description</label>
-              <p class="whitespace-pre-wrap">{{ currentIndicator.formula }}</p>
-            </div>
-
-            <div class="grid grid-cols-3 gap-4">
-              <div>
-                <label class="text-sm text-base-content/60">Target</label>
-                <p>{{ formatTarget(currentIndicator) }}</p>
-              </div>
-              <div>
-                <label class="text-sm text-base-content/60">Entry Frequency</label>
-                <p>
-                  <span :class="['badge badge-sm', currentIndicator.entryFrequency === 'daily' ? 'badge-info' : 'badge-secondary']">
-                    {{ currentIndicator.entryFrequency === 'daily' ? 'Daily' : 'Monthly' }}
-                  </span>
-                </p>
-              </div>
-              <div>
-                <label class="text-sm text-base-content/60">Status</label>
-                <p>
-                  <span :class="['badge badge-sm', currentIndicator.isActive ? 'badge-success' : 'badge-error']">
-                    {{ currentIndicator.isActive ? 'Active' : 'Inactive' }}
-                  </span>
-                </p>
-              </div>
-            </div>
-
-            <div class="grid grid-cols-2 gap-4">
-              <div>
-                <label class="text-sm text-base-content/60">Target is Zero</label>
-                <p>{{ currentIndicator.targetIsZero ? 'Yes' : 'No' }}</p>
-              </div>
-              <div>
-                <label class="text-sm text-base-content/60">Document</label>
-                <a v-if="currentIndicator.documentFile" :href="currentIndicator.documentFile" target="_blank" class="link link-primary">
-                  View Document
-                </a>
-                <p v-else>-</p>
-              </div>
-            </div>
-          </div>
-
-          <div class="modal-action">
-            <button type="button" @click="closeDetailModal" class="btn">Tutup</button>
-            <button type="button" @click="closeDetailModal(); openEditModal(currentIndicator!)" class="btn btn-primary">
-              <Edit class="w-4 h-4" />
-              Edit
-            </button>
-          </div>
-        </div>
-        <form method="dialog" class="modal-backdrop">
-          <button type="button" @click="closeDetailModal">close</button>
-        </form>
-      </dialog>
-    </Teleport>
+    <!-- Detail Modal Component -->
+    <IndicatorDetailModal 
+      :indicator-id="detailIndicatorId"
+      :is-open="showDetailModal"
+      @close="closeDetailModal"
+      @edit="handleEditFromDetail"
+    />
   </div>
 </template>

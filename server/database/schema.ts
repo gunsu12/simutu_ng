@@ -98,6 +98,7 @@ export const indicators = pgTable('indicators', {
   numerator: text('numerator'),
   denominator: text('denominator'),
   target: numeric('target'),
+  targetWeight: numeric('target_weight').default(0).notNull(),
   targetUnit: text('target_unit'), // "percentage" or "day"
   targetKeterangan: text('target_keterangan'), // ">", "<", "=", ">=", "<="
   targetIsZero: boolean('target_is_zero').default(false),

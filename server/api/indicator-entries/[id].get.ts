@@ -1,6 +1,6 @@
 import { db } from '../../database'
 import { indicatorEntries, indicatorEntryItems, indicators, units } from '../../database/schema'
-import { eq } from 'drizzle-orm'
+import { eq, isNull, and } from 'drizzle-orm'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -28,7 +28,12 @@ export default defineEventHandler(async (event) => {
       })
       .from(indicatorEntries)
       .leftJoin(units, eq(indicatorEntries.unitId, units.id))
-      .where(eq(indicatorEntries.id, id))
+      .where(
+        and(
+          eq(indicatorEntries.id, id),
+          isNull(indicatorEntries.deletedAt)
+        )
+      )
 
     if (!entryData) {
       throw createError({

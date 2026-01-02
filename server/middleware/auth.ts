@@ -20,23 +20,34 @@ export default defineEventHandler(async (event) => {
     setResponseStatus(event, 401)
     throw createError({
       statusCode: 401,
-      message: 'Unauthorized: No session found',
+      statusMessage: 'Unauthorized',
+      data: {
+        success: false,
+        message: 'Unauthorized: No session found'
+      }
     })
   }
 
   const { session, user } = await lucia.validateSession(sessionId)
 
-  if (!session) {
+  if (!session || !user) {
     setResponseStatus(event, 401)
     throw createError({
       statusCode: 401,
-      message: 'Unauthorized: Session expired',
+      statusMessage: 'Unauthorized',
+      data: {
+        success: false,
+        message: 'Unauthorized: Session expired'
+      }
     })
   }
 
   // Attach user to event context for use in API handlers
   event.context.user = user
   event.context.session = session
+  
+  // Debug: log when user context is set
+  console.log(`[Auth] User set in context: ${user.username} (${user.role})`)
 
   // Refresh session if needed
   if (session.fresh) {

@@ -26,6 +26,7 @@ export default defineEventHandler(async (event) => {
       numerator,
       denominator,
       target,
+      targetWeight,
       targetUnit,
       targetKeterangan,
       targetIsZero,
@@ -35,11 +36,12 @@ export default defineEventHandler(async (event) => {
       isActive,
     } = body
 
-    if (!indicatorCategoryId || !code || !judul) {
+    // Validate required fields
+    if (!indicatorCategoryId || !code || !judul || targetWeight === undefined) {
       setResponseStatus(event, 400)
       return {
         success: false,
-        message: 'Category, code, and judul are required',
+        message: 'Category, code, judul and targetWeight are required',
       }
     }
 
@@ -82,6 +84,7 @@ export default defineEventHandler(async (event) => {
         numerator: numerator && numerator.trim() !== '' ? numerator.trim() : null,
         denominator: denominator && denominator.trim() !== '' ? denominator.trim() : null,
         target: target || null,
+        targetWeight: Number(targetWeight) || 0,
         targetUnit: targetUnit && targetUnit.trim() !== '' ? targetUnit.trim() : null,
         targetKeterangan: targetKeterangan && targetKeterangan.trim() !== '' ? targetKeterangan.trim() : null,
         targetIsZero: targetIsZero || false,

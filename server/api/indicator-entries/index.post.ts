@@ -1,32 +1,7 @@
 import { db } from '../../database'
 import { indicatorEntries, indicatorEntryItems } from '../../database/schema'
-import { eq, desc, and, like } from 'drizzle-orm'
-
-// Generate entry code in format NM/YYYYMMDD/0000X
-async function generateEntryCode(entryDate: Date): Promise<string> {
-  const year = entryDate.getFullYear()
-  const month = String(entryDate.getMonth() + 1).padStart(2, '0')
-  const day = String(entryDate.getDate()).padStart(2, '0')
-  const dateStr = `${year}${month}${day}`
-  
-  // Find the last entry code for this date
-  const lastEntry = await db
-    .select()
-    .from(indicatorEntries)
-    .where(like(indicatorEntries.entryCode, `NM/${dateStr}/%`))
-    .orderBy(desc(indicatorEntries.entryCode))
-    .limit(1)
-
-  let nextNumber = 1
-  if (lastEntry.length > 0) {
-    const lastCode = lastEntry[0].entryCode
-    const lastNumber = parseInt(lastCode.split('/')[2]) || 0
-    nextNumber = lastNumber + 1
-  }
-
-  const incrementalNumber = String(nextNumber).padStart(5, '0')
-  return `NM/${dateStr}/${incrementalNumber}`
-}
+import { eq, desc, and, like, sql, isNull } from 'drizzle-orm'
+import { generateEntryCode } from '../../services/indicatorService'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -45,7 +20,7 @@ export default defineEventHandler(async (event) => {
         message: 'User not found',
       })
     }
-
+ 
     const body = await readBody(event)
     
     const {
@@ -62,6 +37,53 @@ export default defineEventHandler(async (event) => {
         statusCode: 400,
         message: 'Missing required fields',
       })
+    }
+
+    // Check for existing entry based on frequency
+    const entryDateStr = typeof entryDate === 'string' ? entryDate : new Date(entryDate).toISOString()
+    
+    if (entryFrequency === 'daily') {
+      // For daily entries, check for the same exact day
+      const existingEntries = await db
+        .select()
+        .from(indicatorEntries)
+        .where(
+          and(
+            eq(indicatorEntries.unitId, unitId),
+            eq(indicatorEntries.entryFrequency, 'daily'),
+            sql`DATE(${indicatorEntries.entryDate}) = DATE(${entryDateStr}::timestamp)`,
+            isNull(indicatorEntries.deletedAt)
+          )
+        )
+        .limit(1)
+      
+      if (existingEntries.length > 0) {
+        throw createError({
+          statusCode: 400,
+          message: 'An entry for this unit, date, and frequency already exists on this day',
+        })
+      }
+    } else if (entryFrequency === 'monthly') {
+      // For monthly entries, check for the same month and year
+      const existingEntries = await db
+        .select()
+        .from(indicatorEntries)
+        .where(
+          and(
+            eq(indicatorEntries.unitId, unitId),
+            eq(indicatorEntries.entryFrequency, 'monthly'),
+            sql`DATE_TRUNC('month', ${indicatorEntries.entryDate}) = DATE_TRUNC('month', ${entryDateStr}::timestamp)`,
+            isNull(indicatorEntries.deletedAt)
+          )
+        )
+        .limit(1)
+      
+      if (existingEntries.length > 0) {
+        throw createError({
+          statusCode: 400,
+          message: 'An entry for this unit, month, and frequency already exists',
+        })
+      }
     }
 
     // Generate entry code
@@ -104,9 +126,16 @@ export default defineEventHandler(async (event) => {
     }
   } catch (error: any) {
     console.error('Create indicator entry error:', error)
-    return {
-      success: false,
-      message: error.message || 'Failed to create indicator entry',
+    
+    // If it's already a createError, rethrow it to let h3 handle the response
+    if (error.statusCode) {
+      throw error
     }
+    
+    // Handle unexpected errors
+    throw createError({
+      statusCode: 500,
+      message: error.message || 'Failed to create indicator entry',
+    })
   }
 })

@@ -25,6 +25,7 @@ export default defineEventHandler(async (event) => {
       numerator,
       denominator,
       target,
+      targetWeight,
       targetUnit,
       targetKeterangan,
       targetIsZero,
@@ -42,28 +43,32 @@ export default defineEventHandler(async (event) => {
       }
     }
 
+    const updateData: any = {
+      updatedAt: new Date(),
+    }
+
+    updateData.indicatorCategoryId = indicatorCategoryId.trim()
+    updateData.code = code.trim()
+    updateData.judul = judul.trim()
+    updateData.dimensiMutu = dimensiMutu && dimensiMutu.trim() !== '' ? dimensiMutu.trim() : null
+    updateData.tujuan = tujuan && tujuan.trim() !== '' ? tujuan.trim() : null
+    updateData.definisiOperasional = definisiOperasional && definisiOperasional.trim() !== '' ? definisiOperasional.trim() : null
+    updateData.formula = formula && formula.trim() !== '' ? formula.trim() : null
+    updateData.numerator = numerator && numerator.trim() !== '' ? numerator.trim() : null
+    updateData.denominator = denominator && denominator.trim() !== '' ? denominator.trim() : null
+    updateData.target = target || null
+    if (targetWeight !== undefined) updateData.targetWeight = Number(targetWeight)
+    updateData.targetUnit = targetUnit && targetUnit.trim() !== '' ? targetUnit.trim() : null
+    updateData.targetKeterangan = targetKeterangan && targetKeterangan.trim() !== '' ? targetKeterangan.trim() : null
+    updateData.targetIsZero = targetIsZero || false
+    updateData.targetCalculationFormula = targetCalculationFormula && targetCalculationFormula.trim() !== '' ? targetCalculationFormula.trim() : null
+    updateData.documentFile = documentFile && documentFile.trim() !== '' ? documentFile.trim() : null
+    updateData.entryFrequency = entryFrequency || 'monthly'
+    updateData.isActive = isActive !== undefined ? isActive : true
+
     const [indicator] = await db
       .update(indicators)
-      .set({
-        indicatorCategoryId: indicatorCategoryId.trim(),
-        code: code.trim(),
-        judul: judul.trim(),
-        dimensiMutu: dimensiMutu && dimensiMutu.trim() !== '' ? dimensiMutu.trim() : null,
-        tujuan: tujuan && tujuan.trim() !== '' ? tujuan.trim() : null,
-        definisiOperasional: definisiOperasional && definisiOperasional.trim() !== '' ? definisiOperasional.trim() : null,
-        formula: formula && formula.trim() !== '' ? formula.trim() : null,
-        numerator: numerator && numerator.trim() !== '' ? numerator.trim() : null,
-        denominator: denominator && denominator.trim() !== '' ? denominator.trim() : null,
-        target: target || null,
-        targetUnit: targetUnit && targetUnit.trim() !== '' ? targetUnit.trim() : null,
-        targetKeterangan: targetKeterangan && targetKeterangan.trim() !== '' ? targetKeterangan.trim() : null,
-        targetIsZero: targetIsZero || false,
-        targetCalculationFormula: targetCalculationFormula && targetCalculationFormula.trim() !== '' ? targetCalculationFormula.trim() : null,
-        documentFile: documentFile && documentFile.trim() !== '' ? documentFile.trim() : null,
-        entryFrequency: entryFrequency || 'monthly',
-        isActive: isActive !== undefined ? isActive : true,
-        updatedAt: new Date(),
-      })
+      .set(updateData)
       .where(eq(indicators.id, id))
       .returning()
 

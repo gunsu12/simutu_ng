@@ -26,6 +26,7 @@ export default defineEventHandler(async (event) => {
         numerator: indicators.numerator,
         denominator: indicators.denominator,
         target: indicators.target,
+        targetWeight: indicators.targetWeight,
         targetUnit: indicators.targetUnit,
         targetKeterangan: indicators.targetKeterangan,
         targetIsZero: indicators.targetIsZero,

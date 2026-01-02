@@ -1,6 +1,6 @@
 import { db } from '../../database'
 import { indicatorEntries, indicatorEntryItems } from '../../database/schema'
-import { eq } from 'drizzle-orm'
+import { eq, isNull, and } from 'drizzle-orm'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -54,7 +54,12 @@ export default defineEventHandler(async (event) => {
     const [updatedEntry] = await db
       .update(indicatorEntries)
       .set(updateData)
-      .where(eq(indicatorEntries.id, id))
+      .where(
+        and(
+          eq(indicatorEntries.id, id),
+          isNull(indicatorEntries.deletedAt)
+        )
+      )
       .returning()
 
     if (!updatedEntry) {

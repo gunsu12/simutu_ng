@@ -18,7 +18,6 @@ export default defineEventHandler(async (event) => {
   // Only check permissions on master data endpoints
   if (isMasterDataEndpoint) {
     const user = event.context.user
-    
     // User must be authenticated
     if (!user) {
       setResponseStatus(event, 401)
@@ -31,7 +30,6 @@ export default defineEventHandler(async (event) => {
         }
       })
     }
-
     // Only admin can access master data
     if (user.role !== 'admin') {
       setResponseStatus(event, 403)
