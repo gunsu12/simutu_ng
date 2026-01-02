@@ -89,7 +89,7 @@ const menuItems: MenuItem[] = [
     icon: Settings,
     children: [
       { name: 'Profile', path: '/dashboard/settings/profile', icon: User },
-      { name: 'Update Password', path: '/dashboard/settings/password', icon: KeyRound }
+      // { name: 'Update Password', path: '/dashboard/settings/password', icon: KeyRound }
     ]
   }
 ]
