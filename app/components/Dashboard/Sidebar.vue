@@ -7,6 +7,7 @@ import {
   FileText, 
   Calendar, 
   CalendarDays,
+  ClipboardCheck,
   Database, 
   Users, 
   Building2, 
@@ -70,7 +71,8 @@ const menuItems: MenuItem[] = [
           { name: 'Mutu Bulanan', path: '/dashboard/mutu/report/bulanan', icon: Calendar },
           { name: 'Mutu Harian', path: '/dashboard/mutu/report/harian', icon: CalendarDays }
         ]
-      }
+      },
+      { name: 'Laporan Kegiatan PDCA', path: '/dashboard/mutu/pdca', icon: ClipboardCheck }
     ]
   },
   { 

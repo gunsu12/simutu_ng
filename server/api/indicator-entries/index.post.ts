@@ -1,6 +1,6 @@
 import { db } from '../../database'
 import { indicatorEntries, indicatorEntryItems } from '../../database/schema'
-import { eq, desc, and, like, sql, isNull } from 'drizzle-orm'
+import { eq, desc, and, like, sql, isNull, inArray } from 'drizzle-orm'
 import { generateEntryCode } from '../../services/indicatorService'
 
 export default defineEventHandler(async (event) => {
@@ -84,6 +84,60 @@ export default defineEventHandler(async (event) => {
           message: 'An entry for this unit, month, and frequency already exists',
         })
       }
+    }
+
+    // Use numeratorDenominatorResult calculated on frontend (do not recalculate here)
+    // but still determine whether PDCA is needed by comparing the provided result
+    const indicatorIds = items.map((it: any) => it.indicatorId).filter(Boolean)
+    const indicatorsMap: Record<string, any> = {}
+    if (indicatorIds.length > 0) {
+      const { indicators: indicatorsTable } = await import('../../database/schema')
+      const fetchedIndicators = await db
+        .select({ indicator: indicatorsTable })
+        .from(indicatorsTable)
+        .where(inArray(indicatorsTable.id, indicatorIds as any))
+
+      fetchedIndicators.forEach(({ indicator }: any) => {
+        indicatorsMap[indicator.id] = indicator
+      })
+    }
+
+    for (const it of items) {
+      const ind = indicatorsMap[it.indicatorId]
+      const providedResult = it.numeratorDenominatorResult !== undefined && it.numeratorDenominatorResult !== null && it.numeratorDenominatorResult !== ''
+        ? Number(it.numeratorDenominatorResult)
+        : null
+
+      // Determine whether PDCA is needed by comparing provided result against indicator target
+      let needPdca = false
+      if (providedResult !== null && ind && ind.target !== null && ind.target !== undefined) {
+        const target = Number(ind.target)
+        const keterangan = ind.targetKeterangan || '>='
+        let achieved = false
+        switch (keterangan) {
+          case '>':
+            achieved = providedResult > target
+            break
+          case '<':
+            achieved = providedResult < target
+            break
+          case '=':
+            achieved = providedResult === target
+            break
+          case '<=':
+            achieved = providedResult <= target
+            break
+          case '>=':
+          default:
+            achieved = providedResult >= target
+            break
+        }
+        needPdca = !achieved
+      }
+
+      // Ensure we use frontend-provided result and set PDCA flag
+      it.numeratorDenominatorResult = providedResult
+      it.isNeedPDCA = !!needPdca
     }
 
     // Generate entry code

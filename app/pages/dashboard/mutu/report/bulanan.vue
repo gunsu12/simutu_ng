@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Calendar, Download, Filter, TrendingUp, TrendingDown } from 'lucide-vue-next'
+import { Calendar, Download, Filter, TrendingUp, TrendingDown, Printer, Eye } from 'lucide-vue-next'
 
 definePageMeta({
   layout: 'dashboard'
@@ -7,13 +7,63 @@ definePageMeta({
 
 const selectedMonth = ref('2026-01')
 
-const reportData = ref([
-  { unit: 'IGD', indicators: 5, achieved: 4, percentage: 80 },
-  { unit: 'Rawat Inap', indicators: 8, achieved: 7, percentage: 87.5 },
-  { unit: 'Rawat Jalan', indicators: 6, achieved: 5, percentage: 83.3 },
-  { unit: 'Laboratorium', indicators: 4, achieved: 4, percentage: 100 },
-  { unit: 'Radiologi', indicators: 3, achieved: 2, percentage: 66.7 }
-])
+interface UnitReport {
+  id: string
+  unit: string
+  unitId: string
+  indicators: number
+  achieved: number
+  percentage: number
+}
+
+const reportData = ref<UnitReport[]>([])
+const units = ref<any[]>([])
+const loading = ref(false)
+
+// Fetch units
+async function fetchUnits() {
+  try {
+    const response = await $fetch<{ success: boolean; data: any[] }>('/api/units')
+    if (response.success) {
+      units.value = response.data
+      // Generate mock data for demo (replace with real API later)
+      reportData.value = units.value.slice(0, 5).map((unit, index) => ({
+        id: unit.id,
+        unit: unit.name,
+        unitId: unit.id,
+        indicators: Math.floor(Math.random() * 8) + 3,
+        achieved: Math.floor(Math.random() * 6) + 2,
+        percentage: Math.round((Math.random() * 40) + 60)
+      }))
+    }
+  } catch (error) {
+    console.error('Failed to fetch units:', error)
+  }
+}
+
+// Navigate to print page
+function goToPrintPage(unitId?: string) {
+  const query: any = { month: selectedMonth.value }
+  if (unitId) {
+    query.unitId = unitId
+  }
+  navigateTo({
+    path: '/dashboard/mutu/report/cetak',
+    query
+  })
+}
+
+// Calculate totals
+const totalIndicators = computed(() => reportData.value.reduce((sum, item) => sum + item.indicators, 0))
+const totalAchieved = computed(() => reportData.value.reduce((sum, item) => sum + item.achieved, 0))
+const overallPercentage = computed(() => {
+  if (totalIndicators.value === 0) return 0
+  return Math.round((totalAchieved.value / totalIndicators.value) * 100 * 10) / 10
+})
+
+onMounted(() => {
+  fetchUnits()
+})
 </script>
 
 <template>
@@ -30,9 +80,9 @@ const reportData = ref([
           type="month"
           class="input input-bordered input-sm"
         />
-        <button class="btn btn-primary btn-sm gap-2">
-          <Download class="w-4 h-4" />
-          Export
+        <button @click="goToPrintPage()" class="btn btn-primary btn-sm gap-2">
+          <Printer class="w-4 h-4" />
+          Cetak Laporan
         </button>
       </div>
     </div>
@@ -42,19 +92,19 @@ const reportData = ref([
       <div class="card bg-base-100 border border-base-300 shadow-sm">
         <div class="card-body p-4">
           <p class="text-sm text-base-content/60">Total Indikator</p>
-          <p class="text-2xl font-bold">26</p>
+          <p class="text-2xl font-bold">{{ totalIndicators }}</p>
         </div>
       </div>
       <div class="card bg-base-100 border border-base-300 shadow-sm">
         <div class="card-body p-4">
           <p class="text-sm text-base-content/60">Tercapai</p>
-          <p class="text-2xl font-bold text-success">22</p>
+          <p class="text-2xl font-bold text-success">{{ totalAchieved }}</p>
         </div>
       </div>
       <div class="card bg-base-100 border border-base-300 shadow-sm">
         <div class="card-body p-4">
           <p class="text-sm text-base-content/60">Persentase Capaian</p>
-          <p class="text-2xl font-bold text-primary">84.6%</p>
+          <p class="text-2xl font-bold text-primary">{{ overallPercentage }}%</p>
         </div>
       </div>
     </div>
@@ -70,10 +120,11 @@ const reportData = ref([
               <th class="text-center">Tercapai</th>
               <th class="text-center">Persentase</th>
               <th class="text-center">Trend</th>
+              <th class="text-center">Aksi</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="item in reportData" :key="item.unit">
+            <tr v-for="item in reportData" :key="item.unitId">
               <td class="font-medium">{{ item.unit }}</td>
               <td class="text-center">{{ item.indicators }}</td>
               <td class="text-center">{{ item.achieved }}</td>
@@ -92,6 +143,16 @@ const reportData = ref([
               <td class="text-center">
                 <TrendingUp v-if="item.percentage >= 80" class="w-4 h-4 text-success mx-auto" />
                 <TrendingDown v-else class="w-4 h-4 text-error mx-auto" />
+              </td>
+              <td class="text-center">
+                <button 
+                  @click="goToPrintPage(item.unitId)" 
+                  class="btn btn-ghost btn-xs gap-1"
+                  title="Lihat & Cetak Laporan"
+                >
+                  <Eye class="w-4 h-4" />
+                  Lihat
+                </button>
               </td>
             </tr>
           </tbody>

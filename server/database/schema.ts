@@ -152,6 +152,22 @@ export const indicatorEntryItems = pgTable('indicator_entry_items', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 })
 
+export const indicatorPdcas = pgTable('indicator_pdcas', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  entryItemId: uuid('entry_item_id').notNull().references(() => indicatorEntryItems.id, { onDelete: 'cascade' }),
+  pdcaDate: timestamp('pdca_date').notNull(),
+  problemTitle: text('problem_title').notNull(),
+  stepDescription: text('step_description'),
+  planDescription: text('plan_description'),
+  doDescription: text('do_description'),
+  checkStudy: text('check_study'),
+  action: text('action'),
+  createdBy: uuid('created_by').notNull().references(() => users.id, { onDelete: 'restrict' }),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  deletedAt: timestamp('deleted_at'),
+})
+
 export type Site = typeof sites.$inferSelect
 export type NewSite = typeof sites.$inferInsert
 
@@ -184,3 +200,6 @@ export type NewIndicatorEntry = typeof indicatorEntries.$inferInsert
 
 export type IndicatorEntryItem = typeof indicatorEntryItems.$inferSelect
 export type NewIndicatorEntryItem = typeof indicatorEntryItems.$inferInsert
+
+export type IndicatorPdca = typeof indicatorPdcas.$inferSelect
+export type NewIndicatorPdca = typeof indicatorPdcas.$inferInsert

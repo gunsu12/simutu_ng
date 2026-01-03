@@ -1,6 +1,6 @@
 import { db } from '../../database'
 import { indicatorEntries, indicatorEntryItems } from '../../database/schema'
-import { eq, isNull, and } from 'drizzle-orm'
+import { eq, isNull, and, inArray } from 'drizzle-orm'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -74,18 +74,66 @@ export default defineEventHandler(async (event) => {
       // Delete existing items
       await db.delete(indicatorEntryItems).where(eq(indicatorEntryItems.indicatorEntryId, id))
 
-      // Insert new items
-      const itemsToInsert = items.map((item: any) => ({
-        indicatorEntryId: id,
-        indicatorId: item.indicatorId,
-        numeratorValue: item.numeratorValue?.toString() || null,
-        denominatorValue: item.denominatorValue?.toString() || null,
-        skor: item.skor?.toString() || null,
-        numeratorDenominatorResult: item.numeratorDenominatorResult?.toString() || null,
-        isAlreadyChecked: item.isAlreadyChecked || false,
-        isNeedPDCA: item.isNeedPDCA || false,
-        notes: item.notes || null,
-      }))
+      // Fetch indicators to evaluate PDCA need based on provided result
+      const indicatorIds = items.map((it: any) => it.indicatorId).filter(Boolean)
+      const indicatorsMap: Record<string, any> = {}
+      if (indicatorIds.length > 0) {
+        const { indicators: indicatorsTable } = await import('../../database/schema')
+        const fetchedIndicators = await db
+          .select({ indicator: indicatorsTable })
+          .from(indicatorsTable)
+          .where(inArray(indicatorsTable.id, indicatorIds as any))
+
+        fetchedIndicators.forEach(({ indicator }: any) => {
+          indicatorsMap[indicator.id] = indicator
+        })
+      }
+
+      // Ensure we trust frontend-provided numeratorDenominatorResult but compute isNeedPDCA here
+      const itemsToInsert = items.map((item: any) => {
+        const ind = indicatorsMap[item.indicatorId]
+        const providedResult = item.numeratorDenominatorResult !== undefined && item.numeratorDenominatorResult !== null && item.numeratorDenominatorResult !== ''
+          ? Number(item.numeratorDenominatorResult)
+          : null
+
+        let needPdca = false
+        if (providedResult !== null && ind && ind.target !== null && ind.target !== undefined) {
+          const target = Number(ind.target)
+          const keterangan = ind.targetKeterangan || '>='
+          let achieved = false
+          switch (keterangan) {
+            case '>':
+              achieved = providedResult > target
+              break
+            case '<':
+              achieved = providedResult < target
+              break
+            case '=':
+              achieved = providedResult === target
+              break
+            case '<=':
+              achieved = providedResult <= target
+              break
+            case '>=':
+            default:
+              achieved = providedResult >= target
+              break
+          }
+          needPdca = !achieved
+        }
+
+        return {
+          indicatorEntryId: id,
+          indicatorId: item.indicatorId,
+          numeratorValue: item.numeratorValue?.toString() || null,
+          denominatorValue: item.denominatorValue?.toString() || null,
+          skor: item.skor?.toString() || null,
+          numeratorDenominatorResult: providedResult !== null ? providedResult.toString() : null,
+          isAlreadyChecked: item.isAlreadyChecked || false,
+          isNeedPDCA: !!needPdca,
+          notes: item.notes || null,
+        }
+      })
 
       await db.insert(indicatorEntryItems).values(itemsToInsert)
     }
