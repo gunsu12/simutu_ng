@@ -1,0 +1,17 @@
+node_modules
+npm-debug.log
+.git
+.gitignore
+.env
+.env.local
+.nuxt
+dist
+.output
+.vscode
+.idea
+*.swp
+*.swo
+*~
+.DS_Store
+.env.*.local
+*.log
