@@ -1,6 +1,7 @@
 import { db } from '../../database'
 import { units } from '../../database/schema'
 import { eq } from 'drizzle-orm'
+import { logActivity } from '../../utils/activityLogger'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -14,6 +15,14 @@ export default defineEventHandler(async (event) => {
     }
     
     await db.update(units).set({ deletedAt: new Date() }).where(eq(units.id, id))
+
+    await logActivity({
+      event,
+      action: 'DELETE',
+      module: 'units',
+      description: `Menghapus unit dengan ID: ${id}`,
+      details: { unitId: id }
+    })
     
     return {
       success: true,

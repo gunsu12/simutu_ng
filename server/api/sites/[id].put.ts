@@ -2,6 +2,7 @@ import { db } from '../../database'
 import { sites } from '../../database/schema'
 import { eq } from 'drizzle-orm'
 import { uploadImageWithThumbnail, deleteFile } from '../../utils/s3'
+import { logActivity } from '../../utils/activityLogger'
 
 /**
  * Extract S3 key from stored value.
@@ -89,6 +90,14 @@ export default defineEventHandler(async (event) => {
         message: 'Site not found',
       }
     }
+
+    await logActivity({
+      event,
+      action: 'UPDATE',
+      module: 'sites',
+      description: `Mengupdate site: ${updatedSite[0].name} (${updatedSite[0].siteCode})`,
+      details: { siteId: id, siteCode: updatedSite[0].siteCode, name: updatedSite[0].name }
+    })
     
     return {
       success: true,

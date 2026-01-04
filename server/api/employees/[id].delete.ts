@@ -1,6 +1,7 @@
 import { db } from '../../database'
 import { employees } from '../../database/schema'
 import { eq } from 'drizzle-orm'
+import { logActivity } from '../../utils/activityLogger'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -25,6 +26,14 @@ export default defineEventHandler(async (event) => {
     }
     
     await db.update(employees).set({ deletedAt: new Date() }).where(eq(employees.id, id))
+
+    await logActivity({
+      event,
+      action: 'DELETE',
+      module: 'employees',
+      description: `Menghapus karyawan: ${employee[0]?.fullName || id}`,
+      details: { employeeId: id, fullName: employee[0]?.fullName }
+    })
     
     return {
       success: true,

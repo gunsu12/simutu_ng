@@ -1,6 +1,7 @@
 import { db } from '../../database'
 import { indicators } from '../../database/schema'
 import { eq } from 'drizzle-orm'
+import { logActivity } from '../../utils/activityLogger'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -79,6 +80,14 @@ export default defineEventHandler(async (event) => {
         message: 'Indicator not found',
       }
     }
+
+    await logActivity({
+      event,
+      action: 'UPDATE',
+      module: 'indicators',
+      description: `Mengupdate indikator: ${indicator.judul} (${indicator.code})`,
+      details: { indicatorId: id, code: indicator.code, judul: indicator.judul }
+    })
 
     return {
       success: true,

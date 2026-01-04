@@ -1,6 +1,7 @@
 import { db } from '../../database'
 import { indicatorPdcas, indicatorEntryItems } from '../../database/schema'
 import { eq } from 'drizzle-orm'
+import { logActivity } from '../../utils/activityLogger'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -64,6 +65,14 @@ export default defineEventHandler(async (event) => {
         createdBy: session.userId,
       })
       .returning()
+
+    await logActivity({
+      event,
+      action: 'CREATE',
+      module: 'indicator-pdcas',
+      description: `Membuat PDCA baru: ${body.problemTitle}`,
+      details: { pdcaId: newPdca.id, problemTitle: body.problemTitle, entryItemId: body.entryItemId }
+    })
 
     return {
       success: true,

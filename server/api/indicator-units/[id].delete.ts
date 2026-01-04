@@ -1,6 +1,7 @@
 import { db } from '../../database'
 import { indicatorUnits } from '../../database/schema'
 import { eq } from 'drizzle-orm'
+import { logActivity } from '../../utils/activityLogger'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -14,6 +15,14 @@ export default defineEventHandler(async (event) => {
     }
 
     await db.delete(indicatorUnits).where(eq(indicatorUnits.id, id))
+
+    await logActivity({
+      event,
+      action: 'DELETE',
+      module: 'indicator-units',
+      description: `Menghapus unit dari indikator`,
+      details: { indicatorUnitId: id }
+    })
 
     return {
       success: true,

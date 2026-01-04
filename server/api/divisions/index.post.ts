@@ -1,5 +1,6 @@
 import { db } from '../../database'
 import { divisions } from '../../database/schema'
+import { logActivity } from '../../utils/activityLogger'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -11,6 +12,14 @@ export default defineEventHandler(async (event) => {
       name: body.name,
       description: body.description || null,
     }).returning()
+
+    await logActivity({
+      event,
+      action: 'CREATE',
+      module: 'divisions',
+      description: `Membuat divisi baru: ${newDivision[0].name} (${newDivision[0].code})`,
+      details: { divisionId: newDivision[0].id, code: newDivision[0].code, name: newDivision[0].name }
+    })
     
     return {
       success: true,

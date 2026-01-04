@@ -1,6 +1,7 @@
 import { db } from '../../database'
 import { employees } from '../../database/schema'
 import { uploadImageWithThumbnail } from '../../utils/s3'
+import { logActivity } from '../../utils/activityLogger'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -33,6 +34,14 @@ export default defineEventHandler(async (event) => {
       picture: pictureKey,
       pictureThumbnail: pictureThumbnailKey,
     }).returning()
+
+    await logActivity({
+      event,
+      action: 'CREATE',
+      module: 'employees',
+      description: `Membuat karyawan baru: ${fullName} (NIK: ${nik})`,
+      details: { employeeId: newEmployee[0].id, nik, fullName }
+    })
     
     return {
       success: true,

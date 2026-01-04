@@ -1,6 +1,7 @@
 import { db } from '../../database'
 import { divisions } from '../../database/schema'
 import { eq } from 'drizzle-orm'
+import { logActivity } from '../../utils/activityLogger'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -17,6 +18,14 @@ export default defineEventHandler(async (event) => {
       .update(divisions)
       .set({ deletedAt: new Date() })
       .where(eq(divisions.id, id))
+
+    await logActivity({
+      event,
+      action: 'DELETE',
+      module: 'divisions',
+      description: `Menghapus divisi dengan ID: ${id}`,
+      details: { divisionId: id }
+    })
     
     return {
       success: true,

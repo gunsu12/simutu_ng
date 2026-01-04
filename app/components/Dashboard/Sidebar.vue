@@ -19,7 +19,8 @@ import {
   KeyRound,
   HelpCircle, 
   X,
-  ChevronDown
+  ChevronDown,
+  Activity
 } from 'lucide-vue-next'
 
 interface Props {
@@ -64,6 +65,7 @@ const menuItems: MenuItem[] = [
         ]
       },
       { name: 'Nilai Mutu Unit', path: '/dashboard/mutu/nilai-unit', icon: Calculator },
+      { name: 'Verifikasi', path: '/dashboard/mutu/verifikasi', icon: ClipboardCheck },
       { 
         name: 'Report', 
         icon: FileText,
@@ -93,6 +95,11 @@ const menuItems: MenuItem[] = [
       { name: 'Profile', path: '/dashboard/settings/profile', icon: User },
       // { name: 'Update Password', path: '/dashboard/settings/password', icon: KeyRound }
     ]
+  },
+  { 
+    name: 'Activity Logs', 
+    path: '/dashboard/activity-logs', 
+    icon: Activity 
   }
 ]
 
@@ -109,24 +116,29 @@ const filteredMenuItems = computed(() => {
     return menuItems
   }
   
+  // Helper function to filter Mutu children based on role
+  const filterMutuChildren = (children: MenuItem[]): MenuItem[] => {
+    return children.filter(child => {
+      // Hide Master submenu for 'user' role
+      if (child.name === 'Master' && user.value?.role === 'user') {
+        return false
+      }
+      // Hide Verifikasi for 'user' role (only managers and auditors can access)
+      if (child.name === 'Verifikasi' && user.value?.role === 'user') {
+        return false
+      }
+      return true
+    })
+  }
+  
   // User, Manager, and Auditor can only see Mutu and Settings
-  // They cannot see Master Data menu
+  // They cannot see Master Data menu and Activity Logs
   return menuItems.filter(item => {
     // Show Dashboard
     if (item.name === 'Dashboard') return true
     
     // Show Mutu menu
-    if (item.name === 'Mutu') {
-      // For 'user' role, hide the Master submenu inside Mutu
-      if (user.value?.role === 'user' && item.children) {
-        // Clone the item and filter out Master
-        const filteredMutu = { ...item }
-        filteredMutu.children = item.children.filter(child => child.name !== 'Master')
-        return true
-      }
-      // Manager and Auditor see all Mutu items including Master
-      return true
-    }
+    if (item.name === 'Mutu') return true
     
     // Show Settings menu
     if (item.name === 'Setting') return true
@@ -134,13 +146,16 @@ const filteredMenuItems = computed(() => {
     // Hide Master Data menu for non-admin users
     if (item.name === 'Master Data') return false
     
+    // Hide Activity Logs for non-admin users
+    if (item.name === 'Activity Logs') return false
+    
     return true
   }).map(item => {
-    // Apply the filtering for Mutu menu's children for 'user' role
-    if (item.name === 'Mutu' && user.value?.role === 'user' && item.children) {
+    // Apply the filtering for Mutu menu's children based on role
+    if (item.name === 'Mutu' && item.children) {
       return {
         ...item,
-        children: item.children.filter(child => child.name !== 'Master')
+        children: filterMutuChildren(item.children)
       }
     }
     return item

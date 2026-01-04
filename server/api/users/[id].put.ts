@@ -2,6 +2,7 @@ import { db } from '../../database'
 import { users } from '../../database/schema'
 import { eq } from 'drizzle-orm'
 import bcrypt from 'bcrypt'
+import { logActivity } from '../../utils/activityLogger'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -43,6 +44,14 @@ export default defineEventHandler(async (event) => {
         message: 'User not found',
       }
     }
+
+    await logActivity({
+      event,
+      action: 'UPDATE',
+      module: 'users',
+      description: `Mengupdate user: ${updatedUser[0].name} (${updatedUser[0].email})`,
+      details: { userId, name: updatedUser[0].name, email: updatedUser[0].email, role: updatedUser[0].role }
+    })
 
     return {
       success: true,

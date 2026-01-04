@@ -3,6 +3,7 @@ import { db } from '../../database'
 import { users } from '../../database/schema'
 import { eq } from 'drizzle-orm'
 import bcrypt from 'bcrypt'
+import { logActivity } from '../../utils/activityLogger'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -49,6 +50,17 @@ export default defineEventHandler(async (event) => {
     const sessionCookie = lucia.createSessionCookie(session.id)
 
     setCookie(event, sessionCookie.name, sessionCookie.value, sessionCookie.attributes)
+
+    // Log login activity
+    await logActivity({
+      event,
+      action: 'LOGIN',
+      module: 'auth',
+      description: `User ${user.name} (${user.email}) berhasil login`,
+      userId: user.id,
+      userName: user.name,
+      userEmail: user.email,
+    })
 
     return {
       success: true,

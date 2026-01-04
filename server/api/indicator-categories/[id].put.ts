@@ -1,6 +1,7 @@
 import { db } from '../../database'
 import { indicatorCategories } from '../../database/schema'
 import { eq } from 'drizzle-orm'
+import { logActivity } from '../../utils/activityLogger'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -41,6 +42,14 @@ export default defineEventHandler(async (event) => {
         message: 'Indicator category not found',
       }
     }
+
+    await logActivity({
+      event,
+      action: 'UPDATE',
+      module: 'indicator-categories',
+      description: `Mengupdate kategori indikator: ${category.name}`,
+      details: { categoryId: id, name: category.name }
+    })
 
     return {
       success: true,

@@ -1,6 +1,7 @@
 import { db } from '../../database'
 import { sites } from '../../database/schema'
 import { uploadImageWithThumbnail } from '../../utils/s3'
+import { logActivity } from '../../utils/activityLogger'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -37,6 +38,14 @@ export default defineEventHandler(async (event) => {
       siteLogo,
       siteLogoThumbnail,
     }).returning()
+
+    await logActivity({
+      event,
+      action: 'CREATE',
+      module: 'sites',
+      description: `Membuat site baru: ${name} (${siteCode})`,
+      details: { siteId: newSite[0].id, siteCode, name }
+    })
     
     return {
       success: true,

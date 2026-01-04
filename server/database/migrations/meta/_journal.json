@@ -64,6 +64,20 @@
       "when": 1767421409860,
       "tag": "0008_add_indicator_pdcas",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1767482202878,
+      "tag": "0009_add-verification-logs",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1767485043614,
+      "tag": "0010_activity_logs",
+      "breakpoints": true
     }
   ]
 }

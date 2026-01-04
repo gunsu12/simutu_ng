@@ -1,6 +1,7 @@
 import { db } from '../../database'
 import { units } from '../../database/schema'
 import { eq } from 'drizzle-orm'
+import { logActivity } from '../../utils/activityLogger'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -35,6 +36,14 @@ export default defineEventHandler(async (event) => {
         message: 'Unit not found',
       }
     }
+
+    await logActivity({
+      event,
+      action: 'UPDATE',
+      module: 'units',
+      description: `Mengupdate unit: ${updatedUnit[0].name} (${updatedUnit[0].unitCode})`,
+      details: { unitId: id, unitCode: updatedUnit[0].unitCode, name: updatedUnit[0].name }
+    })
     
     return {
       success: true,

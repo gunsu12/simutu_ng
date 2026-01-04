@@ -168,6 +168,31 @@ export const indicatorPdcas = pgTable('indicator_pdcas', {
   deletedAt: timestamp('deleted_at'),
 })
 
+export const indicatorEntryVerificationLogs = pgTable('indicator_entry_verification_logs', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  indicatorEntryId: uuid('indicator_entry_id').notNull().references(() => indicatorEntries.id, { onDelete: 'cascade' }),
+  previousStatus: text('previous_status').notNull(),
+  newStatus: text('new_status').notNull(),
+  notes: text('notes'),
+  createdBy: uuid('created_by').notNull().references(() => users.id, { onDelete: 'restrict' }),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+})
+
+// Activity Logs - untuk tracking aktifitas user
+export const activityLogs = pgTable('activity_logs', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'set null' }),
+  userName: text('user_name').notNull(), // Simpan nama user untuk referensi jika user dihapus
+  userEmail: text('user_email').notNull(),
+  action: text('action').notNull(), // LOGIN, LOGOUT, CREATE, UPDATE, DELETE, VIEW, etc.
+  module: text('module').notNull(), // auth, users, indicators, indicator-entries, etc.
+  description: text('description').notNull(),
+  details: text('details'), // JSON string untuk data tambahan
+  ipAddress: text('ip_address'),
+  userAgent: text('user_agent'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+})
+
 export type Site = typeof sites.$inferSelect
 export type NewSite = typeof sites.$inferInsert
 
@@ -203,3 +228,9 @@ export type NewIndicatorEntryItem = typeof indicatorEntryItems.$inferInsert
 
 export type IndicatorPdca = typeof indicatorPdcas.$inferSelect
 export type NewIndicatorPdca = typeof indicatorPdcas.$inferInsert
+
+export type IndicatorEntryVerificationLog = typeof indicatorEntryVerificationLogs.$inferSelect
+export type NewIndicatorEntryVerificationLog = typeof indicatorEntryVerificationLogs.$inferInsert
+
+export type ActivityLog = typeof activityLogs.$inferSelect
+export type NewActivityLog = typeof activityLogs.$inferInsert

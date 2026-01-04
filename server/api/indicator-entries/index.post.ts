@@ -2,6 +2,7 @@ import { db } from '../../database'
 import { indicatorEntries, indicatorEntryItems } from '../../database/schema'
 import { eq, desc, and, like, sql, isNull, inArray } from 'drizzle-orm'
 import { generateEntryCode } from '../../services/indicatorService'
+import { logActivity } from '../../utils/activityLogger'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -169,6 +170,14 @@ export default defineEventHandler(async (event) => {
     }))
 
     const insertedItems = await db.insert(indicatorEntryItems).values(itemsToInsert).returning()
+
+    await logActivity({
+      event,
+      action: 'CREATE',
+      module: 'indicator-entries',
+      description: `Membuat entry indikator baru: ${newEntry.entryCode}`,
+      details: { entryId: newEntry.id, entryCode: newEntry.entryCode, unitId, entryFrequency }
+    })
 
     return {
       success: true,

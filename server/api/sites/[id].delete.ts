@@ -2,6 +2,7 @@ import { db } from '../../database'
 import { sites } from '../../database/schema'
 import { eq } from 'drizzle-orm'
 import { deleteFile } from '../../utils/s3'
+import { logActivity } from '../../utils/activityLogger'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -34,6 +35,14 @@ export default defineEventHandler(async (event) => {
       .update(sites)
       .set({ deletedAt: new Date() })
       .where(eq(sites.id, id))
+
+    await logActivity({
+      event,
+      action: 'DELETE',
+      module: 'sites',
+      description: `Menghapus site: ${existingSite[0].name} (${existingSite[0].siteCode})`,
+      details: { siteId: id, siteCode: existingSite[0].siteCode, name: existingSite[0].name }
+    })
     
     return {
       success: true,

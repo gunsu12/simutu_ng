@@ -1,5 +1,6 @@
 import { db } from '../../database'
 import { indicatorCategories } from '../../database/schema'
+import { logActivity } from '../../utils/activityLogger'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -57,6 +58,14 @@ export default defineEventHandler(async (event) => {
         description: description && description.trim() !== '' ? description.trim() : null,
       })
       .returning()
+
+    await logActivity({
+      event,
+      action: 'CREATE',
+      module: 'indicator-categories',
+      description: `Membuat kategori indikator baru: ${category.name}`,
+      details: { categoryId: category.id, name: category.name }
+    })
 
     setResponseStatus(event, 201)
     return {

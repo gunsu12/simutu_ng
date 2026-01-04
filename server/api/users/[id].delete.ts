@@ -1,6 +1,7 @@
 import { db } from '../../database'
 import { users } from '../../database/schema'
 import { eq } from 'drizzle-orm'
+import { logActivity } from '../../utils/activityLogger'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -25,6 +26,14 @@ export default defineEventHandler(async (event) => {
         message: 'User not found',
       }
     }
+
+    await logActivity({
+      event,
+      action: 'DELETE',
+      module: 'users',
+      description: `Menghapus user: ${deletedUser[0].name} (${deletedUser[0].email})`,
+      details: { userId, name: deletedUser[0].name, email: deletedUser[0].email }
+    })
 
     return {
       success: true,

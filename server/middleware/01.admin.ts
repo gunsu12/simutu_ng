@@ -2,13 +2,14 @@ export default defineEventHandler(async (event) => {
   const url = event.node.req.url || ''
   const method = event.node.req.method || ''
   
-  // Only apply to master data endpoints
+  // Only apply to master data endpoints and activity logs
   const masterDataEndpoints = [
     '/api/sites',
     '/api/divisions',
     '/api/units',
     '/api/employees',
-    '/api/users'
+    '/api/users',
+    '/api/activity-logs'
   ]
   
   const isMasterDataEndpoint = masterDataEndpoints.some(endpoint => 

@@ -1,5 +1,6 @@
 import { db } from '../../database'
 import { indicators } from '../../database/schema'
+import { logActivity } from '../../utils/activityLogger'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -94,6 +95,14 @@ export default defineEventHandler(async (event) => {
         isActive: isActive !== undefined ? isActive : true,
       })
       .returning()
+
+    await logActivity({
+      event,
+      action: 'CREATE',
+      module: 'indicators',
+      description: `Membuat indikator baru: ${indicator.judul} (${indicator.code})`,
+      details: { indicatorId: indicator.id, code: indicator.code, judul: indicator.judul }
+    })
 
     setResponseStatus(event, 201)
     return {

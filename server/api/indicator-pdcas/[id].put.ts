@@ -1,6 +1,7 @@
 import { db } from '../../database'
 import { indicatorPdcas } from '../../database/schema'
 import { eq, isNull, and } from 'drizzle-orm'
+import { logActivity } from '../../utils/activityLogger'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -55,6 +56,14 @@ export default defineEventHandler(async (event) => {
       })
       .where(eq(indicatorPdcas.id, id))
       .returning()
+
+    await logActivity({
+      event,
+      action: 'UPDATE',
+      module: 'indicator-pdcas',
+      description: `Mengupdate PDCA: ${updated.problemTitle}`,
+      details: { pdcaId: id, problemTitle: updated.problemTitle }
+    })
 
     return {
       success: true,

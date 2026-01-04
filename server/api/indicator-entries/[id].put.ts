@@ -1,6 +1,7 @@
 import { db } from '../../database'
 import { indicatorEntries, indicatorEntryItems } from '../../database/schema'
 import { eq, isNull, and, inArray } from 'drizzle-orm'
+import { logActivity } from '../../utils/activityLogger'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -137,6 +138,14 @@ export default defineEventHandler(async (event) => {
 
       await db.insert(indicatorEntryItems).values(itemsToInsert)
     }
+
+    await logActivity({
+      event,
+      action: 'UPDATE',
+      module: 'indicator-entries',
+      description: `Mengupdate entry indikator: ${updatedEntry.entryCode}`,
+      details: { entryId: id, entryCode: updatedEntry.entryCode, status: updatedEntry.status }
+    })
 
     return {
       success: true,

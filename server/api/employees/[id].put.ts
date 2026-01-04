@@ -2,6 +2,7 @@ import { db } from '../../database'
 import { employees } from '../../database/schema'
 import { eq } from 'drizzle-orm'
 import { uploadImageWithThumbnail, deleteFile } from '../../utils/s3'
+import { logActivity } from '../../utils/activityLogger'
 
 /**
  * Extract S3 key from stored value.
@@ -89,6 +90,14 @@ export default defineEventHandler(async (event) => {
       })
       .where(eq(employees.id, id))
       .returning()
+
+    await logActivity({
+      event,
+      action: 'UPDATE',
+      module: 'employees',
+      description: `Mengupdate karyawan: ${fullName} (NIK: ${nik})`,
+      details: { employeeId: id, nik, fullName }
+    })
     
     return {
       success: true,

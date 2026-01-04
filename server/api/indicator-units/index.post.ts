@@ -1,5 +1,6 @@
 import { db } from '../../database'
 import { indicatorUnits } from '../../database/schema'
+import { logActivity } from '../../utils/activityLogger'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -17,6 +18,14 @@ export default defineEventHandler(async (event) => {
       indicatorId,
       unitId,
     }).returning()
+
+    await logActivity({
+      event,
+      action: 'CREATE',
+      module: 'indicator-units',
+      description: `Menambahkan unit ke indikator`,
+      details: { indicatorUnitId: newIndicatorUnit[0].id, indicatorId, unitId }
+    })
 
     return {
       success: true,

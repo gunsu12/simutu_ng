@@ -1,6 +1,7 @@
 import { db } from '../../database'
 import { indicatorCategories } from '../../database/schema'
 import { eq } from 'drizzle-orm'
+import { logActivity } from '../../utils/activityLogger'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -17,6 +18,14 @@ export default defineEventHandler(async (event) => {
       .update(indicatorCategories)
       .set({ deletedAt: new Date() })
       .where(eq(indicatorCategories.id, id))
+
+    await logActivity({
+      event,
+      action: 'DELETE',
+      module: 'indicator-categories',
+      description: `Menghapus kategori indikator dengan ID: ${id}`,
+      details: { categoryId: id }
+    })
 
     return {
       success: true,

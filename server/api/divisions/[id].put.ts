@@ -1,6 +1,7 @@
 import { db } from '../../database'
 import { divisions } from '../../database/schema'
 import { eq } from 'drizzle-orm'
+import { logActivity } from '../../utils/activityLogger'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -32,6 +33,14 @@ export default defineEventHandler(async (event) => {
         message: 'Division not found',
       }
     }
+
+    await logActivity({
+      event,
+      action: 'UPDATE',
+      module: 'divisions',
+      description: `Mengupdate divisi: ${updatedDivision[0].name} (${updatedDivision[0].code})`,
+      details: { divisionId: id, code: updatedDivision[0].code, name: updatedDivision[0].name }
+    })
     
     return {
       success: true,

@@ -1,6 +1,7 @@
 import { db } from '../../database'
 import { users } from '../../database/schema'
 import { eq } from 'drizzle-orm'
+import { logActivity } from '../../utils/activityLogger'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -85,6 +86,14 @@ export default defineEventHandler(async (event) => {
         message: 'Failed to update profile',
       }
     }
+
+    await logActivity({
+      event,
+      action: 'UPDATE',
+      module: 'settings',
+      description: `User mengupdate profil: ${updatedUser[0].name}`,
+      details: { userId: updatedUser[0].id, name: updatedUser[0].name, email: updatedUser[0].email }
+    })
 
     return {
       success: true,

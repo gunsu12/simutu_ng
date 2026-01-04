@@ -2,6 +2,7 @@ import { db } from '../../database'
 import { users } from '../../database/schema'
 import { eq } from 'drizzle-orm'
 import bcrypt from 'bcrypt'
+import { logActivity } from '../../utils/activityLogger'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -81,6 +82,14 @@ export default defineEventHandler(async (event) => {
         updatedAt: new Date(),
       })
       .where(eq(users.id, session.user.id))
+
+    await logActivity({
+      event,
+      action: 'UPDATE',
+      module: 'settings',
+      description: `User mengubah password`,
+      details: { userId: session.user.id }
+    })
 
     return {
       success: true,

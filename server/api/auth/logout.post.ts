@@ -1,4 +1,5 @@
 import { lucia } from '../../utils/auth'
+import { logActivity } from '../../utils/activityLogger'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -10,6 +11,16 @@ export default defineEventHandler(async (event) => {
         success: false,
         message: 'Not authenticated',
       }
+    }
+
+    // Log logout activity before invalidating session
+    if (event.context.user) {
+      await logActivity({
+        event,
+        action: 'LOGOUT',
+        module: 'auth',
+        description: `User ${event.context.user.name} (${event.context.user.email}) logout`,
+      })
     }
 
     await lucia.invalidateSession(sessionId)

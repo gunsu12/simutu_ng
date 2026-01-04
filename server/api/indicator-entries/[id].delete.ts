@@ -1,6 +1,7 @@
 import { db } from '../../database'
 import { indicatorEntries } from '../../database/schema'
 import { eq } from 'drizzle-orm'
+import { logActivity } from '../../utils/activityLogger'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -33,6 +34,14 @@ export default defineEventHandler(async (event) => {
         message: 'Entry not found',
       })
     }
+
+    await logActivity({
+      event,
+      action: 'DELETE',
+      module: 'indicator-entries',
+      description: `Menghapus entry indikator: ${deletedEntry.entryCode}`,
+      details: { entryId: id, entryCode: deletedEntry.entryCode }
+    })
 
     return {
       success: true,

@@ -1,6 +1,7 @@
 import { db } from '../../database'
 import { users } from '../../database/schema'
 import bcrypt from 'bcrypt'
+import { logActivity } from '../../utils/activityLogger'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -31,6 +32,14 @@ export default defineEventHandler(async (event) => {
         siteId: siteId && siteId.trim() !== '' ? siteId : null,
       })
       .returning()
+
+    await logActivity({
+      event,
+      action: 'CREATE',
+      module: 'users',
+      description: `Membuat user baru: ${name} (${email})`,
+      details: { userId: newUser[0].id, name, email, role: role || 'user' }
+    })
 
     setResponseStatus(event, 201)
     return {

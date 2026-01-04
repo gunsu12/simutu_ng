@@ -1,5 +1,6 @@
 import { db } from '../../database'
 import { units } from '../../database/schema'
+import { logActivity } from '../../utils/activityLogger'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -14,6 +15,14 @@ export default defineEventHandler(async (event) => {
       location: body.location || null,
       headOfUnit: body.headOfUnit || null,
     }).returning()
+
+    await logActivity({
+      event,
+      action: 'CREATE',
+      module: 'units',
+      description: `Membuat unit baru: ${newUnit[0].name} (${newUnit[0].unitCode})`,
+      details: { unitId: newUnit[0].id, unitCode: newUnit[0].unitCode, name: newUnit[0].name }
+    })
     
     return {
       success: true,

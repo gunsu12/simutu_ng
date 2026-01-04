@@ -1,4 +1,5 @@
 import { uploadFile, generateFileUrl } from '../utils/s3'
+import { logActivity } from '../utils/activityLogger'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -44,6 +45,14 @@ export default defineEventHandler(async (event) => {
     
     // Generate presigned URL for immediate display
     const displayUrl = await generateFileUrl(fileKey)
+
+    await logActivity({
+      event,
+      action: 'UPLOAD',
+      module: 'indicators',
+      description: `Mengupload file: ${file.name}`,
+      details: { fileName: file.name, fileType: file.type, fileSize: file.size, folder }
+    })
     
     return {
       success: true,
