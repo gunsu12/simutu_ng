@@ -3,11 +3,14 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Copy package files
+# Install build dependencies
+RUN apk add --no-cache libc6-compat
+
+# Copy package files for better caching
 COPY package.json package-lock.json* ./
 
-# Install dependencies
-RUN npm ci
+# Install all dependencies (including dev for build)
+RUN npm ci --frozen-lockfile
 
 # Copy source code
 COPY . .
@@ -15,29 +18,28 @@ COPY . .
 # Build the application
 RUN npm run build
 
-# Production stage
-FROM node:20-alpine
+# Production stage - use distroless-like minimal image
+FROM node:20-alpine AS production
 
 WORKDIR /app
 
-# Copy package files
-COPY package.json package-lock.json* ./
+# Add non-root user for security
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 nuxtjs
 
-# Install only production dependencies
-RUN npm ci --omit=dev
+# Only copy the standalone output (Nuxt 3 outputs everything needed)
+COPY --from=builder --chown=nuxtjs:nodejs /app/.output ./.output
 
-# Copy built application from builder stage
-COPY --from=builder /app/.nuxt ./.nuxt
-COPY --from=builder /app/.output ./.output
-COPY public ./public
-COPY server ./server
-COPY app ./app
+# Set environment variables
+ENV NODE_ENV=production
+ENV HOST=0.0.0.0
+ENV PORT=3000
 
 # Expose port
 EXPOSE 3000
 
-# Set environment
-ENV NODE_ENV=production
+# Switch to non-root user
+USER nuxtjs
 
 # Start the application
 CMD ["node", ".output/server/index.mjs"]

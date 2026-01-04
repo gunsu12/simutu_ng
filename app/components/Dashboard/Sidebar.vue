@@ -72,7 +72,8 @@ const menuItems: MenuItem[] = [
         icon: FileText,
         children: [
           { name: 'Mutu Bulanan', path: '/dashboard/mutu/report/bulanan', icon: Calendar },
-          { name: 'Mutu Harian', path: '/dashboard/mutu/report/harian', icon: CalendarDays }
+          { name: 'Mutu Harian', path: '/dashboard/mutu/report/harian', icon: CalendarDays },
+          { name: 'Mutu Tahunan', path: '/dashboard/mutu/report/tahunan', icon: FileText }
         ]
       }
     ]

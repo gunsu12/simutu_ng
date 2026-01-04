@@ -221,7 +221,7 @@ async function seed() {
 
     console.log(`✅ Successfully seeded ${sampleCategories.length} indicator categories`)
 
-    // Insert indicators
+    // Insert indicators (monthly)
     const sampleIndicators = await db.insert(indicators).values([
       {
         siteId: firstSite.id,
@@ -285,10 +285,78 @@ async function seed() {
       },
     ]).returning()
 
-    console.log(`✅ Successfully seeded ${sampleIndicators.length} indicators`)
+    console.log(`✅ Successfully seeded ${sampleIndicators.length} monthly indicators`)
 
-    // Insert indicator units (link indicators to units)
-    const indicatorUnitLinks = await db.insert(indicatorUnits).values([
+    // Insert daily indicators
+    const dailyIndicators = await db.insert(indicators).values([
+      {
+        siteId: firstSite.id,
+        indicatorCategoryId: sampleCategories[0].id,
+        code: 'IND004',
+        judul: 'Kepatuhan Hand Hygiene',
+        dimensiMutu: 'Safety',
+        tujuan: 'Meningkatkan kepatuhan cuci tangan tenaga medis',
+        definisiOperasional: 'Persentase kepatuhan hand hygiene pada 5 momen cuci tangan',
+        formula: '(Jumlah kepatuhan / Total observasi) x 100',
+        numerator: 'Jumlah kepatuhan hand hygiene',
+        denominator: 'Total observasi',
+        target: '90',
+        targetWeight: '12',
+        targetUnit: 'percentage',
+        targetKeterangan: '>=',
+        targetIsZero: false,
+        targetCalculationFormula: '(N/D)*100',
+        entryFrequency: 'daily',
+        isActive: true,
+      },
+      {
+        siteId: firstSite.id,
+        indicatorCategoryId: sampleCategories[0].id,
+        code: 'IND005',
+        judul: 'Waktu Respon Tim Emergency',
+        dimensiMutu: 'Timeliness',
+        tujuan: 'Mempercepat respon tim emergency',
+        definisiOperasional: 'Rata-rata waktu respon tim emergency dalam menit',
+        formula: 'Total waktu respon / Jumlah kasus',
+        numerator: 'Total waktu respon (menit)',
+        denominator: 'Jumlah kasus emergency',
+        target: '5',
+        targetWeight: '8',
+        targetUnit: 'day',
+        targetKeterangan: '<=',
+        targetIsZero: false,
+        targetCalculationFormula: 'N/D',
+        entryFrequency: 'daily',
+        isActive: true,
+      },
+      {
+        siteId: firstSite.id,
+        indicatorCategoryId: sampleCategories[1].id,
+        code: 'IND006',
+        judul: 'Kelengkapan Dokumentasi Rekam Medis',
+        dimensiMutu: 'Effectiveness',
+        tujuan: 'Memastikan kelengkapan dokumentasi rekam medis',
+        definisiOperasional: 'Persentase kelengkapan pengisian rekam medis dalam 24 jam',
+        formula: '(Rekam medis lengkap / Total rekam medis) x 100',
+        numerator: 'Jumlah rekam medis lengkap',
+        denominator: 'Total rekam medis',
+        target: '95',
+        targetWeight: '10',
+        targetUnit: 'percentage',
+        targetKeterangan: '>=',
+        targetIsZero: false,
+        targetCalculationFormula: '(N/D)*100',
+        entryFrequency: 'daily',
+        isActive: true,
+      },
+    ]).returning()
+
+    console.log(`✅ Successfully seeded ${dailyIndicators.length} daily indicators`)
+
+    console.log(`✅ Successfully seeded ${dailyIndicators.length} daily indicators`)
+
+    // Insert indicator units for monthly indicators
+    const monthlyIndicatorUnitLinks = await db.insert(indicatorUnits).values([
       {
         indicatorId: sampleIndicators[0].id,
         unitId: sampleUnits[0].id,
@@ -307,7 +375,44 @@ async function seed() {
       },
     ]).returning()
 
-    console.log(`✅ Successfully seeded ${indicatorUnitLinks.length} indicator-unit links`)
+    console.log(`✅ Successfully seeded ${monthlyIndicatorUnitLinks.length} indicator-unit links for monthly indicators`)
+
+    // Insert indicator units for daily indicators (assign all units to each daily indicator)
+    const dailyIndicatorUnitLinks = await db.insert(indicatorUnits).values([
+      // IND004 - Kepatuhan Hand Hygiene - assigned to all units
+      {
+        indicatorId: dailyIndicators[0].id,
+        unitId: sampleUnits[0].id, // Emergency Unit
+      },
+      {
+        indicatorId: dailyIndicators[0].id,
+        unitId: sampleUnits[1].id, // Surgery Unit
+      },
+      {
+        indicatorId: dailyIndicators[0].id,
+        unitId: sampleUnits[2].id, // HR Unit
+      },
+      // IND005 - Waktu Respon Tim Emergency - assigned to Emergency Unit
+      {
+        indicatorId: dailyIndicators[1].id,
+        unitId: sampleUnits[0].id, // Emergency Unit
+      },
+      // IND006 - Kelengkapan Dokumentasi Rekam Medis - assigned to all units
+      {
+        indicatorId: dailyIndicators[2].id,
+        unitId: sampleUnits[0].id, // Emergency Unit
+      },
+      {
+        indicatorId: dailyIndicators[2].id,
+        unitId: sampleUnits[1].id, // Surgery Unit
+      },
+      {
+        indicatorId: dailyIndicators[2].id,
+        unitId: sampleUnits[2].id, // HR Unit
+      },
+    ]).returning()
+
+    console.log(`✅ Successfully seeded ${dailyIndicatorUnitLinks.length} indicator-unit links for daily indicators`)
 
     // Insert sample indicator entries
     const entryDate = new Date('2026-01-01')
@@ -372,8 +477,10 @@ async function seed() {
     console.log(`   - Units: ${sampleUnits.length}`)
     console.log(`   - Users: ${sampleUsers.length + 1} (including admin)`)
     console.log(`   - Indicator Categories: ${sampleCategories.length}`)
-    console.log(`   - Indicators: ${sampleIndicators.length}`)
-    console.log(`   - Indicator Units: ${indicatorUnitLinks.length}`)
+    console.log(`   - Monthly Indicators: ${sampleIndicators.length}`)
+    console.log(`   - Daily Indicators: ${dailyIndicators.length}`)
+    console.log(`   - Monthly Indicator Units: ${monthlyIndicatorUnitLinks.length}`)
+    console.log(`   - Daily Indicator Units: ${dailyIndicatorUnitLinks.length}`)
     console.log(`   - Indicator Entries: ${sampleEntries.length}`)
     console.log(`   - Indicator Entry Items: ${sampleEntryItems.length}`)
     console.log('\n🔑 Admin Credentials:')
