@@ -4,9 +4,18 @@ import { users } from '../../database/schema'
 import { eq } from 'drizzle-orm'
 import bcrypt from 'bcrypt'
 import { logActivity } from '../../utils/activityLogger'
+import { applyRateLimit, loginRateLimiter } from '../../utils/rateLimiter'
 
+/**
+ * Login endpoint with rate limiting
+ * Rate limit: 5 attempts per 15 minutes per IP address
+ * Returns 429 status if limit exceeded
+ */
 export default defineEventHandler(async (event) => {
   try {
+    // Apply rate limiting (5 attempts per 15 minutes per IP)
+    await applyRateLimit(event, loginRateLimiter)
+
     const { email, password } = await readBody(event)
 
     if (!email || !password) {

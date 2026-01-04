@@ -1,8 +1,16 @@
 import { uploadFile, generateFileUrl } from '../utils/s3'
 import { logActivity } from '../utils/activityLogger'
+import { applyRateLimit, apiRateLimiter } from '../utils/rateLimiter'
 
+/**
+ * File upload endpoint with rate limiting
+ * Rate limit: 100 requests per minute per IP
+ */
 export default defineEventHandler(async (event) => {
   try {
+    // Apply rate limiting to prevent abuse
+    await applyRateLimit(event, apiRateLimiter)
+    
     const formData = await readFormData(event)
     
     const file = formData.get('file') as File | null

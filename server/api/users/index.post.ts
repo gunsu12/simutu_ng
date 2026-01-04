@@ -3,9 +3,17 @@ import { users } from '../../database/schema'
 import bcrypt from 'bcrypt'
 import { logActivity } from '../../utils/activityLogger'
 import { sanitizeUserResponse } from '../../utils/validation'
+import { applyRateLimit, apiRateLimiter } from '../../utils/rateLimiter'
 
+/**
+ * User creation endpoint with rate limiting
+ * Rate limit: 100 requests per minute per IP
+ */
 export default defineEventHandler(async (event) => {
   try {
+    // Apply rate limiting to prevent spam account creation
+    await applyRateLimit(event, apiRateLimiter)
+    
     const body = await readBody(event)
 
     const { name, username, email, password, role, employeeId, siteId } = body

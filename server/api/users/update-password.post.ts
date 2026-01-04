@@ -3,9 +3,17 @@ import { users } from '../../database/schema'
 import { eq } from 'drizzle-orm'
 import bcrypt from 'bcrypt'
 import { logActivity } from '../../utils/activityLogger'
+import { applyRateLimit, loginRateLimiter } from '../../utils/rateLimiter'
 
+/**
+ * Update password endpoint with rate limiting
+ * Uses same rate limit as login: 5 attempts per 15 minutes
+ */
 export default defineEventHandler(async (event) => {
   try {
+    // Apply rate limiting to prevent brute force attacks
+    await applyRateLimit(event, loginRateLimiter)
+    
     const { currentPassword, newPassword, confirmPassword } = await readBody(event)
 
     // Validate input
