@@ -6,6 +6,7 @@ export interface User {
   role: 'admin' | 'user' | 'manager' | 'auditor'
   employeeId?: string | null
   siteId?: string | null
+  unitId?: string | null
 }
 
 export interface AuthState {

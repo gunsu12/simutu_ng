@@ -110,7 +110,6 @@ const handleLogout = async () => {
               <span class="text-xs text-base-content/60">{{ user?.email }}</span>
             </li>
             <li><NuxtLink to="/dashboard/settings/profile">Profile</NuxtLink></li>
-            <li><NuxtLink to="/dashboard/settings/password">Change Password</NuxtLink></li>
             <div class="divider my-1"></div>
             <li>
               <button @click="handleLogout" :disabled="loading" class="text-error">

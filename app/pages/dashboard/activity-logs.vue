@@ -161,15 +161,19 @@ const goToPage = (newPage: number) => {
 }
 
 const formatDate = (dateString: string) => {
+  // Database stores local time (Asia/Makassar), parse and display as-is
   const date = new Date(dateString)
-  return new Intl.DateTimeFormat('id-ID', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  }).format(date)
+  // Adjust for the timezone offset that JavaScript adds when parsing
+  // Since DB stores local time but JS interprets as UTC, we need to display without conversion
+  const day = date.getUTCDate().toString().padStart(2, '0')
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
+  const month = months[date.getUTCMonth()]
+  const year = date.getUTCFullYear()
+  const hours = date.getUTCHours().toString().padStart(2, '0')
+  const minutes = date.getUTCMinutes().toString().padStart(2, '0')
+  const seconds = date.getUTCSeconds().toString().padStart(2, '0')
+  
+  return `${day} ${month} ${year}, ${hours}.${minutes}.${seconds}`
 }
 
 const getDeviceInfo = (userAgent: string | null) => {

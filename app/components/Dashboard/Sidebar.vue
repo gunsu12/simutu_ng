@@ -65,6 +65,7 @@ const menuItems: MenuItem[] = [
         ]
       },
       { name: 'Nilai Mutu Unit', path: '/dashboard/mutu/nilai-unit', icon: Calculator },
+      { name: 'Laporan Kegiatan PDCA', path: '/dashboard/mutu/pdca', icon: ClipboardCheck },
       { name: 'Verifikasi', path: '/dashboard/mutu/verifikasi', icon: ClipboardCheck },
       { 
         name: 'Report', 
@@ -73,8 +74,7 @@ const menuItems: MenuItem[] = [
           { name: 'Mutu Bulanan', path: '/dashboard/mutu/report/bulanan', icon: Calendar },
           { name: 'Mutu Harian', path: '/dashboard/mutu/report/harian', icon: CalendarDays }
         ]
-      },
-      { name: 'Laporan Kegiatan PDCA', path: '/dashboard/mutu/pdca', icon: ClipboardCheck }
+      }
     ]
   },
   { 
@@ -109,7 +109,9 @@ const bottomMenuItems: MenuItem[] = [
 
 // Filter menu items based on user role
 const filteredMenuItems = computed(() => {
-  if (!user.value) return []
+  // While user is loading, show all menu items to prevent flash
+  // The actual filtering will happen once user data is available
+  if (!user.value) return menuItems
   
   // Admin can see everything
   if (user.value.role === 'admin') {
@@ -221,6 +223,7 @@ const autoExpandMenus = (replace: boolean = false) => {
         }
       }
     }
+    // Use raw menuItems for expansion check to work even before user loads
     checkAndAdd(menuItems)
     expandedMenus.value = newExpanded
   } else {
@@ -231,8 +234,8 @@ const autoExpandMenus = (replace: boolean = false) => {
   isInitialized.value = true
 }
 
-// Initialize on client side before mount to avoid flash
-if (process.client) {
+// Initialize expansion immediately on client side
+if (import.meta.client) {
   autoExpandMenus(true)
 }
 
@@ -245,6 +248,15 @@ onMounted(() => {
 // Only expand menus on route change, don't collapse existing ones
 watch(() => route.path, () => {
   autoExpandMenus(false)
+})
+
+// Re-initialize when user becomes available
+watch(() => user.value, (newUser) => {
+  if (newUser) {
+    nextTick(() => {
+      autoExpandMenus(false)
+    })
+  }
 })
 </script>
 
