@@ -3,19 +3,12 @@ import { users } from '../../database/schema'
 import { eq } from 'drizzle-orm'
 import bcrypt from 'bcrypt'
 import { logActivity } from '../../utils/activityLogger'
+import { sanitizeUserResponse, requireValidUUID } from '../../utils/validation'
 
 export default defineEventHandler(async (event) => {
   try {
-    const userId = event.context.params?.id
+    const userId = requireValidUUID(event.context.params?.id, 'User ID')
     const body = await readBody(event)
-
-    if (!userId) {
-      setResponseStatus(event, 400)
-      return {
-        success: false,
-        message: 'User ID is required',
-      }
-    }
 
     const { name, username, email, password, role, employeeId, siteId } = body
 
@@ -55,7 +48,7 @@ export default defineEventHandler(async (event) => {
 
     return {
       success: true,
-      data: updatedUser[0],
+      data: sanitizeUserResponse(updatedUser[0]),
     }
   } catch (error: any) {
     console.error('Error updating user:', error)

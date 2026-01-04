@@ -1,16 +1,13 @@
 import { getPresignedUrl } from '../../utils/s3'
+import { validateS3Key } from '../../utils/validation'
 
 export default defineEventHandler(async (event) => {
   try {
     const query = getQuery(event)
-    const key = query.key as string
+    const rawKey = query.key as string
     
-    if (!key) {
-      return {
-        success: false,
-        message: 'File key is required',
-      }
-    }
+    // Validate S3 key to prevent path traversal attacks
+    const key = validateS3Key(rawKey)
     
     // Generate presigned URL (valid for 7 days)
     const signedUrl = await getPresignedUrl(key, 604800)

@@ -2,6 +2,7 @@
 import { Plus, Search, Edit, Trash2, Eye, ClipboardCheck, Calendar, AlertCircle } from 'lucide-vue-next'
 import RichTextEditor from '~/components/RichTextEditor.vue'
 import { Printer } from 'lucide-vue-next'
+import { sanitizeHtml } from '~/utils/sanitize'
 
 definePageMeta({
   layout: 'dashboard',
@@ -825,21 +826,21 @@ onMounted(() => {
                 </div>
             <div>
                 <label class="label"><span class="label-text font-medium">Plan</span></label>
-                <div class="p-3 bg-base-200 rounded-lg min-h-20 prose prose-sm max-w-none" v-html="selectedPdca.planDescription || '-'"></div>
+                <div class="p-3 bg-base-200 rounded-lg min-h-20 prose prose-sm max-w-none" v-html="sanitizeHtml(selectedPdca.planDescription)"></div>
             </div>
             <div>
                 <label class="label"><span class="label-text font-medium">Do</span></label>
-                <div class="p-3 bg-base-200 rounded-lg min-h-20 prose prose-sm max-w-none" v-html="selectedPdca.doDescription || '-'"></div>
+                <div class="p-3 bg-base-200 rounded-lg min-h-20 prose prose-sm max-w-none" v-html="sanitizeHtml(selectedPdca.doDescription)"></div>
                 </div>
                 <div>
                 <label class="label"><span class="label-text font-medium">Check/Study</span></label>
-                <div class="p-3 bg-base-200 rounded-lg min-h-20 prose prose-sm max-w-none" v-html="selectedPdca.checkStudy || '-'"></div>
+                <div class="p-3 bg-base-200 rounded-lg min-h-20 prose prose-sm max-w-none" v-html="sanitizeHtml(selectedPdca.checkStudy)"></div>
                 </div>
             </div>
             
             <div>
                 <label class="label"><span class="label-text font-medium">Action</span></label>
-                <div class="p-3 bg-base-200 rounded-lg prose prose-sm max-w-none" v-html="selectedPdca.action || '-'"></div>
+                <div class="p-3 bg-base-200 rounded-lg prose prose-sm max-w-none" v-html="sanitizeHtml(selectedPdca.action)"></div>
             </div>
             
             <div class="modal-action">

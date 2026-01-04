@@ -2,6 +2,7 @@ import { db } from '../../database'
 import { users } from '../../database/schema'
 import bcrypt from 'bcrypt'
 import { logActivity } from '../../utils/activityLogger'
+import { sanitizeUserResponse } from '../../utils/validation'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -44,7 +45,7 @@ export default defineEventHandler(async (event) => {
     setResponseStatus(event, 201)
     return {
       success: true,
-      data: newUser[0],
+      data: sanitizeUserResponse(newUser[0]),
     }
   } catch (error: any) {
     console.error('Error creating user:', error)

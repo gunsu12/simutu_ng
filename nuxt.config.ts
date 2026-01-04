@@ -18,6 +18,21 @@ export default defineNuxtConfig({
     '/login': { ssr: false }
   },
 
+  // Security headers
+  nitro: {
+    routeRules: {
+      '/**': {
+        headers: {
+          'X-Frame-Options': 'DENY',
+          'X-Content-Type-Options': 'nosniff',
+          'X-XSS-Protection': '1; mode=block',
+          'Referrer-Policy': 'strict-origin-when-cross-origin',
+          'Permissions-Policy': 'camera=(), microphone=(), geolocation=()'
+        }
+      }
+    }
+  },
+
   app: {
     head: {
       title: 'Simutu NG Dashboard',

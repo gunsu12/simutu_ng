@@ -45,9 +45,6 @@ export default defineEventHandler(async (event) => {
   // Attach user to event context for use in API handlers
   event.context.user = user
   event.context.session = session
-  
-  // Debug: log when user context is set
-  console.log(`[Auth] User set in context: ${user.username} (${user.role})`)
 
   // Refresh session if needed
   if (session.fresh) {
