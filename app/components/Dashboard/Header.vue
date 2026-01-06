@@ -22,7 +22,7 @@ const handleLogout = async () => {
       <!-- Left Section -->
       <div class="flex items-center gap-4">
         <button 
-          class="btn btn-ghost btn-sm btn-square lg:hidden"
+          class="btn btn-ghost btn-sm btn-square"
           @click="emit('toggleSidebar')"
         >
           <Menu class="w-5 h-5" />
@@ -45,7 +45,7 @@ const handleLogout = async () => {
       <div class="flex items-center gap-2">
         <!-- Theme Toggle -->
         <button 
-          class="btn btn-ghost btn-sm btn-square"
+          class="btn btn-ghost btn-primary btn-square"
           @click="toggleTheme"
           :title="isDark ? 'Switch to light mode' : 'Switch to dark mode'"
         >
@@ -53,50 +53,9 @@ const handleLogout = async () => {
           <Moon v-else class="w-5 h-5" />
         </button>
 
-        <!-- Notifications -->
-        <div class="dropdown dropdown-end">
-          <button tabindex="0" class="btn btn-ghost btn-sm btn-square">
-            <div class="indicator">
-              <Bell class="w-5 h-5" />
-              <span class="indicator-item badge badge-primary badge-xs">3</span>
-            </div>
-          </button>
-          <div tabindex="0" class="dropdown-content z-50 mt-3 card card-compact w-80 bg-base-100 shadow-xl border border-base-300">
-            <div class="card-body">
-              <h3 class="font-semibold text-base-content">Notifications</h3>
-              <div class="divider my-1"></div>
-              <div class="space-y-3">
-                <div class="flex gap-3 p-2 rounded-lg hover:bg-base-200 cursor-pointer">
-                  <div class="w-2 h-2 mt-2 bg-primary rounded-full"></div>
-                  <div class="flex-1">
-                    <p class="text-sm font-medium">New user registered</p>
-                    <p class="text-xs text-base-content/60">2 minutes ago</p>
-                  </div>
-                </div>
-                <div class="flex gap-3 p-2 rounded-lg hover:bg-base-200 cursor-pointer">
-                  <div class="w-2 h-2 mt-2 bg-success rounded-full"></div>
-                  <div class="flex-1">
-                    <p class="text-sm font-medium">Report generated</p>
-                    <p class="text-xs text-base-content/60">1 hour ago</p>
-                  </div>
-                </div>
-                <div class="flex gap-3 p-2 rounded-lg hover:bg-base-200 cursor-pointer">
-                  <div class="w-2 h-2 mt-2 bg-warning rounded-full"></div>
-                  <div class="flex-1">
-                    <p class="text-sm font-medium">System update available</p>
-                    <p class="text-xs text-base-content/60">3 hours ago</p>
-                  </div>
-                </div>
-              </div>
-              <div class="divider my-1"></div>
-              <button class="btn btn-ghost btn-sm w-full">View all notifications</button>
-            </div>
-          </div>
-        </div>
-
         <!-- User Menu -->
         <div class="dropdown dropdown-end">
-          <button tabindex="0" class="btn btn-ghost btn-sm gap-2">
+          <button tabindex="0" class="btn btn-ghost btn-primary gap-2">
             <div class="avatar placeholder">
               <div class="bg-primary text-primary-content rounded-full w-8">
                 <span class="text-sm">{{ user?.name?.charAt(0) || 'U' }}</span>

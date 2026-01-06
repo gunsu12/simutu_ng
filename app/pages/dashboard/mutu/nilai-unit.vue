@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Plus, Search, Edit, Trash2, Calendar } from 'lucide-vue-next'
+import { Plus, Search, Edit, Trash2, Calendar, Eye, Book } from 'lucide-vue-next'
 
 // Transition styles for notifications
 const notificationTransition = `
@@ -375,8 +375,8 @@ function calculateResult(
 
 // Watch entry frequency to fetch indicators
 watch(() => formData.value.entryFrequency, (newFrequency) => {
-  if (modalOpen.value && modalMode.value === 'create') {
-    fetchAvailableIndicators(newFrequency)
+  if (modalOpen.value && modalMode.value === 'create' && newFrequency) {
+    fetchAvailableIndicators(newFrequency as 'daily' | 'monthly')
   }
 })
 
@@ -414,7 +414,7 @@ async function saveEntry() {
       }
     } else if (selectedEntry.value) {
       const response = await $fetch(`/api/indicator-entries/${selectedEntry.value.id}`, {
-        method: 'PUT',
+        method: 'PUT' as any,
         body: payload
       })
       if (response.success) {
@@ -451,7 +451,7 @@ async function deleteEntry(id: string) {
   loading.value = true
   try {
     const response = await $fetch(`/api/indicator-entries/${id}`, {
-      method: 'DELETE'
+      method: 'DELETE' as any
     })
     if (response.success) {
       await fetchEntries()
@@ -743,16 +743,16 @@ onMounted(() => {
                           {{ item.indicatorCode }} - {{ item.indicatorName }}
                         </h4>
                         <details class="cursor-pointer" @toggle="item.showDetails = !item.showDetails">
-                          <summary class="text-sm text-base-content/60 hover:text-base-content">
-                            📋 View indicator details
+                          <summary class="text-sm text-base-content/80 hover:text-base-content flex items-center">
+                            <Book class="w-4 h-4 mr-2" /> View indicator details
                           </summary>
                           <div class="mt-3 space-y-2 text-sm">
                             <div v-if="item.numeratorDesc" class="divider my-2">Numerator</div>
-                            <div v-if="item.numeratorDesc" class="bg-base-300 p-2 rounded text-xs">
+                            <div v-if="item.numeratorDesc" class="bg-base-300 p-2 rounded text-md">
                               {{ item.numeratorDesc }}
                             </div>
                             <div v-if="item.denominatorDesc" class="divider my-2">Denominator</div>
-                            <div v-if="item.denominatorDesc" class="bg-base-300 p-2 rounded text-xs">
+                            <div v-if="item.denominatorDesc" class="bg-base-300 p-2 rounded text-md">
                               {{ item.denominatorDesc }}
                             </div>
                           </div>
@@ -764,7 +764,7 @@ onMounted(() => {
                         class="btn btn-ghost btn-sm btn-square"
                         title="View full detail"
                       >
-                        👁️
+                        <Eye class="w-4 h-4" />
                       </button>
                     </div>
                     <div class="divider my-2"></div>

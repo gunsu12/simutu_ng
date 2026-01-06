@@ -20,11 +20,14 @@ import {
   HelpCircle, 
   X,
   ChevronDown,
-  Activity
+  Activity,
+  Pin,
+  PinOff
 } from 'lucide-vue-next'
 
 interface Props {
   isOpen: boolean
+  isPinned?: boolean
 }
 
 interface MenuItem {
@@ -34,10 +37,20 @@ interface MenuItem {
   children?: MenuItem[]
 }
 
-defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+  isPinned: false
+})
+
 const emit = defineEmits<{
   close: []
+  togglePin: []
 }>()
+
+const handleLinkClick = () => {
+  if (!props.isPinned) {
+    emit('close')
+  }
+}
 
 const route = useRoute()
 const { user } = useAuth()
@@ -263,24 +276,45 @@ watch(() => user.value, (newUser) => {
 
 <template>
   <aside
-    class="fixed inset-y-0 left-0 z-50 w-64 bg-base-200 border-r border-base-300 transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0"
-    :class="isOpen ? 'translate-x-0' : '-translate-x-full'"
+    class="h-full bg-base-200 border-r border-base-300 transition-all duration-300 ease-in-out lg:static lg:translate-x-0"
+    :class="[
+      'fixed inset-y-0 left-0 z-50 w-64 transform',
+      isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+    ]"
   >
     <div class="flex flex-col h-full">
       <!-- Logo -->
       <div class="flex items-center justify-between h-16 px-6 border-b border-base-300">
-        <NuxtLink to="/dashboard" class="flex items-center gap-3">
-          <div class="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-            <span class="text-primary-content font-bold text-lg">S</span>
+        <NuxtLink to="/dashboard" class="flex items-center gap-3 overflow-hidden">
+          <div class="w-8 h-8 bg-primary rounded-lg flex items-center justify-center shrink-0 overflow-hidden">
+            <template v-if="user?.siteLogo">
+              <img :src="user.siteLogo" alt="Site Logo" class="w-full h-full object-cover" />
+            </template>
+            <template v-else>
+              <span class="text-primary-content font-bold text-lg">S</span>
+            </template>
           </div>
-          <span class="text-xl font-bold text-base-content">Simutu</span>
+          <span class="text-xl font-bold text-base-content truncate">
+            {{ user?.siteName || 'Simutu' }}
+          </span>
         </NuxtLink>
-        <button 
-          class="btn btn-ghost btn-sm btn-square lg:hidden"
-          @click="emit('close')"
-        >
-          <X class="w-5 h-5" />
-        </button>
+        <div class="flex items-center gap-1">
+          <!-- Pin Button -->
+          <button 
+            class="hidden lg:flex btn btn-ghost btn-xs btn-square"
+            @click="emit('togglePin')"
+            :title="isPinned ? 'Unpin sidebar' : 'Pin sidebar'"
+          >
+            <Pin v-if="!isPinned" class="w-4 h-4" />
+            <PinOff v-else class="w-4 h-4 text-primary" />
+          </button>
+          <button 
+            class="btn btn-ghost btn-sm btn-square lg:hidden"
+            @click="emit('close')"
+          >
+            <X class="w-5 h-5" />
+          </button>
+        </div>
       </div>
 
       <!-- Navigation -->
@@ -326,7 +360,7 @@ watch(() => user.value, (newUser) => {
                         <NuxtLink 
                           :to="grandChild.path!" 
                           :class="isActive(grandChild.path) ? 'active' : ''"
-                          @click="emit('close')"
+                          @click="handleLinkClick"
                         >
                           <component :is="grandChild.icon" class="w-4 h-4" />
                           {{ grandChild.name }}

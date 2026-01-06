@@ -6,6 +6,8 @@ export interface User {
   role: 'admin' | 'user' | 'manager' | 'auditor'
   employeeId?: string | null
   siteId?: string | null
+  siteLogo?: string | null
+  siteName?: string | null
   unitId?: string | null
 }
 
@@ -22,7 +24,7 @@ export const useAuth = () => {
 
   const fetchSession = async () => {
     try {
-      const response = await $fetch('/api/auth/session')
+      const response = await $fetch<{ success: boolean; data: { user: User } }>('/api/auth/session')
       if (response.success && response.data?.user) {
         user.value = response.data.user
         return true

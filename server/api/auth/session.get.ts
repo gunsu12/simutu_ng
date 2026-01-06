@@ -1,6 +1,6 @@
 import { lucia } from '../../utils/auth'
 import { db } from '../../database'
-import { employees } from '../../database/schema'
+import { employees, sites } from '../../database/schema'
 import { eq } from 'drizzle-orm'
 
 export default defineEventHandler(async (event) => {
@@ -41,9 +41,28 @@ export default defineEventHandler(async (event) => {
         .from(employees)
         .where(eq(employees.id, user.employeeId))
         .limit(1)
-      
+
       if (employee.length > 0) {
         unitId = employee[0].unitId
+      }
+    }
+
+    // Fetch site info if siteId exists
+    let siteLogo = null
+    let siteName = null
+    if (user.siteId) {
+      const site = await db
+        .select({
+          siteLogo: sites.siteLogo,
+          name: sites.name
+        })
+        .from(sites)
+        .where(eq(sites.id, user.siteId))
+        .limit(1)
+
+      if (site.length > 0) {
+        siteLogo = site[0].siteLogo
+        siteName = site[0].name
       }
     }
 
@@ -58,6 +77,8 @@ export default defineEventHandler(async (event) => {
           role: user.role,
           employeeId: user.employeeId,
           siteId: user.siteId,
+          siteLogo: siteLogo,
+          siteName: siteName,
           unitId: unitId,
         },
         session: {
