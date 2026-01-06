@@ -22,7 +22,9 @@ import {
   ChevronDown,
   Activity,
   Pin,
-  PinOff
+  PinOff,
+  RefreshCw,
+  Shield
 } from 'lucide-vue-next'
 
 interface Props {
@@ -102,6 +104,14 @@ const menuItems: MenuItem[] = [
       { name: 'User Management', path: '/dashboard/master/users', icon: UserCog }
     ]
   },
+  {
+    name: 'Admin',
+    icon: Shield,
+    children: [
+      { name: 'Sync Data', path: '/dashboard/admin/sync', icon: RefreshCw },
+      { name: 'Activity Logs', path: '/dashboard/activity-logs', icon: Activity }
+    ]
+  },
   { 
     name: 'Setting', 
     icon: Settings,
@@ -109,11 +119,6 @@ const menuItems: MenuItem[] = [
       { name: 'Profile', path: '/dashboard/settings/profile', icon: User },
       // { name: 'Update Password', path: '/dashboard/settings/password', icon: KeyRound }
     ]
-  },
-  { 
-    name: 'Activity Logs', 
-    path: '/dashboard/activity-logs', 
-    icon: Activity 
   }
 ]
 
@@ -161,9 +166,9 @@ const filteredMenuItems = computed(() => {
     
     // Hide Master Data menu for non-admin users
     if (item.name === 'Master Data') return false
-    
-    // Hide Activity Logs for non-admin users
-    if (item.name === 'Activity Logs') return false
+
+    // Hide Admin menu for non-admin users
+    if (item.name === 'Admin') return false
     
     return true
   }).map(item => {

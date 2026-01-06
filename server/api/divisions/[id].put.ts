@@ -7,14 +7,14 @@ export default defineEventHandler(async (event) => {
   try {
     const id = getRouterParam(event, 'id')
     const body = await readBody(event)
-    
+
     if (!id) {
       return {
         success: false,
         message: 'Division ID is required',
       }
     }
-    
+
     const updatedDivision = await db
       .update(divisions)
       .set({
@@ -22,11 +22,12 @@ export default defineEventHandler(async (event) => {
         code: body.code,
         name: body.name,
         description: body.description || null,
+        managerId: body.managerId || null,
         updatedAt: new Date(),
       })
       .where(eq(divisions.id, id))
       .returning()
-    
+
     if (updatedDivision.length === 0) {
       return {
         success: false,
@@ -41,7 +42,7 @@ export default defineEventHandler(async (event) => {
       description: `Mengupdate divisi: ${updatedDivision[0].name} (${updatedDivision[0].code})`,
       details: { divisionId: id, code: updatedDivision[0].code, name: updatedDivision[0].name }
     })
-    
+
     return {
       success: true,
       data: updatedDivision[0],

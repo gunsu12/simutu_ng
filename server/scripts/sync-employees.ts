@@ -21,8 +21,14 @@ interface EmployeeSyncData {
     unit_code: string
     site_code: string
     site_name: string
+    site_address?: string | null
+    site_email?: string | null
+    site_website?: string | null
+    site_phone?: string | null
     unit_head_kode?: string | null
     unit_head_name?: string | null
+    division_head_kode?: string | null
+    division_head_name?: string | null
 }
 
 async function syncData() {
@@ -48,6 +54,7 @@ async function syncData() {
         const divisionMap = new Map<string, string>()
         const unitMap = new Map<string, string>()
         const unitHeadNikMap = new Map<string, string>() // unit_code -> unit_head_nik
+        const divisionHeadNikMap = new Map<string, string>() // division_code -> division_head_nik
 
         for (const item of data) {
             // 1. Sync Site
@@ -57,10 +64,21 @@ async function syncData() {
                     .values({
                         siteCode: item.site_code,
                         name: item.site_name,
+                        address: item.site_address,
+                        email: item.site_email,
+                        website: item.site_website,
+                        phone: item.site_phone,
                     })
                     .onConflictDoUpdate({
                         target: sites.siteCode,
-                        set: { name: item.site_name, updatedAt: new Date() }
+                        set: {
+                            name: item.site_name,
+                            address: item.site_address,
+                            email: item.site_email,
+                            website: item.site_website,
+                            phone: item.site_phone,
+                            updatedAt: new Date()
+                        }
                     })
                     .returning({ id: sites.id })
 
@@ -121,6 +139,11 @@ async function syncData() {
                 unitHeadNikMap.set(item.unit_code, item.unit_head_kode)
             }
 
+            // Store division head info for second pass
+            if (item.division_head_kode) {
+                divisionHeadNikMap.set(item.division_code, item.division_head_kode)
+            }
+
             // 4. Sync Employee
             await db.insert(employees)
                 .values({
@@ -144,10 +167,9 @@ async function syncData() {
                 })
         }
 
-        console.log('🔄 Updating Unit Heads...')
+        console.log('🔄 Updating Unit Heads and Division Managers...')
         // Second pass: Link Unit Heads
         for (const [unitCode, headNik] of unitHeadNikMap.entries()) {
-            // Find employee by NIK
             const [headEmployee] = await db.select()
                 .from(employees)
                 .where(eq(employees.nik, headNik))
@@ -157,6 +179,20 @@ async function syncData() {
                 await db.update(units)
                     .set({ headOfUnit: headEmployee.id })
                     .where(eq(units.unitCode, unitCode))
+            }
+        }
+
+        // Link Division Heads
+        for (const [divisionCode, headNik] of divisionHeadNikMap.entries()) {
+            const [headEmployee] = await db.select()
+                .from(employees)
+                .where(eq(employees.nik, headNik))
+                .limit(1)
+
+            if (headEmployee) {
+                await db.update(divisions)
+                    .set({ managerId: headEmployee.id })
+                    .where(eq(divisions.code, divisionCode))
             }
         }
 

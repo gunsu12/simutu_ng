@@ -23,6 +23,7 @@ export const divisions = pgTable('divisions', {
   code: text('code').notNull().unique(),
   name: text('name').notNull(),
   description: text('description'),
+  managerId: uuid('manager_id').references(() => employees.id, { onDelete: 'set null' }),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
   deletedAt: timestamp('deleted_at'),

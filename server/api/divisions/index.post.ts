@@ -5,12 +5,13 @@ import { logActivity } from '../../utils/activityLogger'
 export default defineEventHandler(async (event) => {
   try {
     const body = await readBody(event)
-    
+
     const newDivision = await db.insert(divisions).values({
       siteId: body.siteId,
       code: body.code,
       name: body.name,
       description: body.description || null,
+      managerId: body.managerId || null,
     }).returning()
 
     await logActivity({
@@ -20,7 +21,7 @@ export default defineEventHandler(async (event) => {
       description: `Membuat divisi baru: ${newDivision[0].name} (${newDivision[0].code})`,
       details: { divisionId: newDivision[0].id, code: newDivision[0].code, name: newDivision[0].name }
     })
-    
+
     return {
       success: true,
       data: newDivision[0],

@@ -1,5 +1,5 @@
 import { db } from '../../database'
-import { divisions, sites } from '../../database/schema'
+import { divisions, sites, employees } from '../../database/schema'
 import { eq, and, isNull, sql, ilike, or } from 'drizzle-orm'
 
 export default defineEventHandler(async (event) => {
@@ -47,9 +47,12 @@ export default defineEventHandler(async (event) => {
         createdAt: divisions.createdAt,
         updatedAt: divisions.updatedAt,
         siteName: sites.name,
+        managerId: divisions.managerId,
+        managerName: employees.fullName,
       })
       .from(divisions)
       .leftJoin(sites, eq(divisions.siteId, sites.id))
+      .leftJoin(employees, eq(divisions.managerId, employees.id))
       .where(whereClause as any)
       .orderBy(divisions.createdAt)
       .limit(limit)
