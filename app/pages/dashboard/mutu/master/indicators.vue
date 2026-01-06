@@ -79,6 +79,11 @@ const assignedUnits = ref<IndicatorUnit[]>([])
 const availableUnits = ref<Unit[]>([])
 const loadingUnits = ref(false)
 const selectedUnitId = ref('')
+const unitSearchQuery = ref('')
+const unitLoading = ref(false)
+const unitTotalPages = ref(1)
+const unitCurrentPage = ref(1)
+const unitInput = ref<HTMLInputElement | null>(null)
 
 // Form data with all fields
 const form = ref({
@@ -329,8 +334,9 @@ const removeDocument = () => {
 const openUnitsModal = async (indicator: Indicator) => {
   selectedIndicatorForUnits.value = indicator
   showUnitsModal.value = true
+  unitSearchQuery.value = ''
   await loadIndicatorUnits(indicator.id)
-  await loadAvailableUnits(indicator.siteId)
+  await loadAvailableUnits()
 }
 
 const closeUnitsModal = () => {
@@ -355,15 +361,41 @@ const loadIndicatorUnits = async (indicatorId: string) => {
   }
 }
 
-const loadAvailableUnits = async (siteId: string) => {
+const loadAvailableUnits = async (search = '', page = 1) => {
+  if (!selectedIndicatorForUnits.value) return
+  unitLoading.value = true
   try {
-    const response = await $fetch<{ success: boolean; data: Unit[] }>(`/api/units?siteId=${siteId}`)
+    const response = await $fetch<{ 
+      success: boolean; 
+      data: Unit[];
+      meta: { total: number; totalPages: number; page: number; limit: number }
+    }>('/api/units', {
+      query: { 
+        siteId: selectedIndicatorForUnits.value.siteId,
+        search, 
+        page,
+        limit: 10
+      }
+    })
     if (response.success) {
       availableUnits.value = response.data
+      unitTotalPages.value = response.meta.totalPages
+      unitCurrentPage.value = response.meta.page
     }
   } catch (error) {
     console.error('Error loading units:', error)
+  } finally {
+    unitLoading.value = false
   }
+}
+
+// Handle unit search with debounce
+let unitSearchTimeout: ReturnType<typeof setTimeout> | null = null
+const handleUnitSearch = () => {
+  if (unitSearchTimeout) clearTimeout(unitSearchTimeout)
+  unitSearchTimeout = setTimeout(() => {
+    loadAvailableUnits(unitSearchQuery.value)
+  }, 500)
 }
 
 const assignUnitToIndicator = async () => {
@@ -1020,25 +1052,79 @@ const formatTarget = (indicator: Indicator) => {
 
           <!-- Add New Unit -->
           <div class="divider">Add Unit</div>
-          <div class="flex gap-2">
-            <select v-model="selectedUnitId" class="select select-bordered flex-1">
-              <option value="">Select a unit to assign</option>
-              <option
-                v-for="unit in availableUnits.filter(u => !assignedUnits.some(au => au.unitId === u.id))"
-                :key="unit.id"
-                :value="unit.id"
+          <div class="flex flex-col gap-2">
+            <div class="dropdown w-full">
+              <div class="relative">
+                <input
+                  ref="unitInput"
+                  v-model="unitSearchQuery"
+                  type="text"
+                  placeholder="Search unit to assign..."
+                  class="input input-bordered w-full"
+                  @input="handleUnitSearch"
+                  @focus="() => { if (!unitSearchQuery) loadAvailableUnits() }"
+                />
+                <div v-if="unitLoading" class="absolute right-3 top-1/2 -translate-y-1/2">
+                  <span class="loading loading-spinner loading-xs"></span>
+                </div>
+              </div>
+              
+              <ul class="dropdown-content z-[2] menu p-2 shadow bg-base-100 rounded-box w-full max-h-60 overflow-y-auto mt-1 border border-base-content/10">
+                <li v-if="availableUnits.filter(u => !assignedUnits.some(au => au.unitId === u.id)).length === 0 && !unitLoading">
+                  <a class="text-base-content/50">No available units found</a>
+                </li>
+                <li v-for="unit in availableUnits.filter(u => !assignedUnits.some(au => au.unitId === u.id))" :key="unit.id">
+                  <button 
+                    type="button"
+                    @click="() => { 
+                      selectedUnitId = unit.id; 
+                      unitSearchQuery = unit.name;
+                      (unitInput as any)?.blur();
+                    }"
+                    :class="{ 'active': selectedUnitId === unit.id }"
+                  >
+                    <div class="flex flex-col items-start">
+                      <span class="font-medium">{{ unit.name }}</span>
+                      <span class="text-xs opacity-50">{{ unit.unitCode }}</span>
+                    </div>
+                  </button>
+                </li>
+                <li v-if="unitTotalPages > 1" class="border-t border-base-content/10 mt-2 pt-2">
+                  <div class="flex justify-between items-center px-4 py-2">
+                    <button 
+                      type="button"
+                      class="btn btn-xs" 
+                      :disabled="unitCurrentPage === 1 || unitLoading"
+                      @click.stop="loadAvailableUnits(unitSearchQuery, unitCurrentPage - 1)"
+                    >«</button>
+                    <span class="text-xs">Page {{ unitCurrentPage }} of {{ unitTotalPages }}</span>
+                    <button 
+                      type="button"
+                      class="btn btn-xs" 
+                      :disabled="unitCurrentPage === unitTotalPages || unitLoading"
+                      @click.stop="loadAvailableUnits(unitSearchQuery, unitCurrentPage + 1)"
+                    >»</button>
+                  </div>
+                </li>
+              </ul>
+            </div>
+            
+            <div class="flex justify-between items-center">
+              <div v-if="selectedUnitId" class="text-sm">
+                <span class="text-success">Selected: {{ unitSearchQuery }}</span>
+                <button type="button" @click="() => { selectedUnitId = ''; unitSearchQuery = ''; loadAvailableUnits(); }" class="ml-2 link link-error">Clear</button>
+              </div>
+              <div v-else class="text-xs text-base-content/50">Select a unit above</div>
+              
+              <button
+                @click="assignUnitToIndicator"
+                class="btn btn-primary btn-sm"
+                :disabled="!selectedUnitId || unitLoading"
               >
-                {{ unit.name }} ({{ unit.unitCode }})
-              </option>
-            </select>
-            <button
-              @click="assignUnitToIndicator"
-              class="btn btn-primary"
-              :disabled="!selectedUnitId"
-            >
-              <Plus class="w-4 h-4" />
-              Assign
-            </button>
+                <Plus class="w-4 h-4" />
+                Assign Unit
+              </button>
+            </div>
           </div>
 
           <div class="modal-action">

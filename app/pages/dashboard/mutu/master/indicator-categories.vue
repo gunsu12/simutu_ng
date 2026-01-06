@@ -280,77 +280,79 @@ const deleteCategory = async (id: string) => {
       </div>
     </div>
 
-    <!-- Modal -->
-    <ClientOnly>
-      <dialog :class="['modal', { 'modal-open': showModal }]" :open="showModal">
-        <div class="modal-box">
-          <button type="button" class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" @click="closeModal">✕</button>
-          <h3 class="font-bold text-lg mb-4">
-            {{ isEditing ? 'Edit Kategori' : 'Tambah Kategori' }}
-          </h3>
+    <Teleport to="body">
+      <!-- Modal -->
+      <ClientOnly>
+        <dialog :class="['modal', { 'modal-open': showModal }]" :open="showModal">
+          <div class="modal-box">
+            <button type="button" class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" @click="closeModal">✕</button>
+            <h3 class="font-bold text-lg mb-4">
+              {{ isEditing ? 'Edit Kategori' : 'Tambah Kategori' }}
+            </h3>
 
-          <!-- Error Message -->
-          <div v-if="errorMessage" class="alert alert-error mb-4">
-            <span>{{ errorMessage }}</span>
+            <!-- Error Message -->
+            <div v-if="errorMessage" class="alert alert-error mb-4">
+              <span>{{ errorMessage }}</span>
+            </div>
+
+            <form @submit.prevent="saveCategory" class="space-y-4">
+              <div v-if="isAdmin && !isEditing" class="form-control">
+                <label class="label">
+                  <span class="label-text">Site <span class="text-error">*</span></span>
+                </label>
+                <select
+                  v-model="form.siteId"
+                  class="select select-bordered"
+                  required
+                  :disabled="saving"
+                >
+                  <option value="">Pilih Site</option>
+                  <option v-for="site in sites" :key="site.id" :value="site.id">
+                    {{ site.name }}
+                  </option>
+                </select>
+              </div>
+
+              <div class="form-control">
+                <label class="label">
+                  <span class="label-text">Name <span class="text-error">*</span></span>
+                </label>
+                <input
+                  v-model="form.name"
+                  type="text"
+                  placeholder="Category name"
+                  class="input input-bordered"
+                  required
+                  :disabled="saving"
+                />
+              </div>
+
+              <div class="form-control">
+                <label class="label">
+                  <span class="label-text">Description</span>
+                </label>
+                <textarea
+                  v-model="form.description"
+                  placeholder="Category description"
+                  class="textarea textarea-bordered h-24"
+                  :disabled="saving"
+                ></textarea>
+              </div>
+
+              <div class="modal-action">
+                <button type="button" @click="closeModal" class="btn" :disabled="saving">Batal</button>
+                <button type="submit" class="btn btn-primary" :disabled="saving">
+                  <span v-if="saving" class="loading loading-spinner loading-sm"></span>
+                  <span v-else>{{ isEditing ? 'Update' : 'Simpan' }}</span>
+                </button>
+              </div>
+            </form>
           </div>
-
-          <form @submit.prevent="saveCategory" class="space-y-4">
-            <div v-if="isAdmin && !isEditing" class="form-control">
-              <label class="label">
-                <span class="label-text">Site <span class="text-error">*</span></span>
-              </label>
-              <select
-                v-model="form.siteId"
-                class="select select-bordered"
-                required
-                :disabled="saving"
-              >
-                <option value="">Pilih Site</option>
-                <option v-for="site in sites" :key="site.id" :value="site.id">
-                  {{ site.name }}
-                </option>
-              </select>
-            </div>
-
-            <div class="form-control">
-              <label class="label">
-                <span class="label-text">Name <span class="text-error">*</span></span>
-              </label>
-              <input
-                v-model="form.name"
-                type="text"
-                placeholder="Category name"
-                class="input input-bordered"
-                required
-                :disabled="saving"
-              />
-            </div>
-
-            <div class="form-control">
-              <label class="label">
-                <span class="label-text">Description</span>
-              </label>
-              <textarea
-                v-model="form.description"
-                placeholder="Category description"
-                class="textarea textarea-bordered h-24"
-                :disabled="saving"
-              ></textarea>
-            </div>
-
-            <div class="modal-action">
-              <button type="button" @click="closeModal" class="btn" :disabled="saving">Batal</button>
-              <button type="submit" class="btn btn-primary" :disabled="saving">
-                <span v-if="saving" class="loading loading-spinner loading-sm"></span>
-                <span v-else>{{ isEditing ? 'Update' : 'Simpan' }}</span>
-              </button>
-            </div>
+          <form method="dialog" class="modal-backdrop">
+            <button type="button" @click="closeModal">close</button>
           </form>
-        </div>
-        <form method="dialog" class="modal-backdrop">
-          <button type="button" @click="closeModal">close</button>
-        </form>
-      </dialog>
-    </ClientOnly>
+        </dialog>
+      </ClientOnly>
+    </Teleport>
   </div>
 </template>

@@ -6,6 +6,9 @@ definePageMeta({
   middleware: 'auth'
 })
 
+const { user } = useAuth()
+const isAdmin = computed(() => user.value?.role === 'admin')
+
 // Report data types
 interface ReportItem {
   indicatorId: string
@@ -62,21 +65,54 @@ const error = ref<string | null>(null)
 const reportData = ref<ReportData | null>(null)
 const units = ref<any[]>([])
 const loadingUnits = ref(false)
+const unitSearchQuery = ref('')
+const unitTotalPages = ref(1)
+const unitCurrentPage = ref(1)
+const unitInput = ref<HTMLInputElement | null>(null)
+const unitNameSelect = ref('')
 
 // Filter state
 const selectedUnitId = ref((route.query.unitId as string) || '')
 const selectedDate = ref((route.query.date as string) || new Date().toISOString().split('T')[0])
 
 // Fetch units
-async function fetchUnits() {
+async function fetchUnits(search = '', page = 1, fetchById = '') {
   loadingUnits.value = true
   try {
-    const response = await $fetch<{ success: boolean; data: any[] }>('/api/units')
+    const response = await $fetch<{ 
+      success: boolean; 
+      data: any[];
+      meta: { total: number; totalPages: number; page: number; limit: number }
+    }>('/api/units', {
+      query: { search, page, limit: 10, id: fetchById }
+    })
+    
     if (response.success) {
-      units.value = response.data
-      // Auto-select first unit if none selected
-      if (!selectedUnitId.value && units.value.length > 0) {
-        selectedUnitId.value = units.value[0].id
+      if (fetchById) {
+        if (response.data.length > 0) {
+          unitNameSelect.value = response.data[0].name
+          if (!selectedUnitId.value) selectedUnitId.value = response.data[0].id
+        }
+      } else {
+        units.value = response.data
+        unitTotalPages.value = response.meta.totalPages
+        unitCurrentPage.value = response.meta.page
+        
+        // Auto-select first unit if none selected and not searching
+        if (!selectedUnitId.value && units.value.length > 0 && !search) {
+          if (!isAdmin.value && user.value?.unitId) {
+            // Find user unit in current list if possible
+            const myUnit = units.value.find(u => u.id === user.value?.unitId)
+            if (myUnit) {
+              selectedUnitId.value = myUnit.id
+              unitNameSelect.value = myUnit.name
+            }
+          } else {
+            const firstUnit = units.value[0]
+            selectedUnitId.value = firstUnit.id
+            unitNameSelect.value = firstUnit.name
+          }
+        }
       }
     }
   } catch (err: any) {
@@ -84,6 +120,15 @@ async function fetchUnits() {
   } finally {
     loadingUnits.value = false
   }
+}
+
+// Handle unit search with debounce
+let unitSearchTimeout: ReturnType<typeof setTimeout> | null = null
+const handleUnitSearch = () => {
+  if (unitSearchTimeout) clearTimeout(unitSearchTimeout)
+  unitSearchTimeout = setTimeout(() => {
+    fetchUnits(unitSearchQuery.value)
+  }, 500)
 }
 
 // Fetch report data
@@ -167,7 +212,18 @@ watch([selectedUnitId, selectedDate], () => {
 
 // Initial load
 onMounted(async () => {
-  await fetchUnits()
+  // If not admin, override selectedUnitId with user's unitId
+  if (!isAdmin.value && user.value?.unitId) {
+    selectedUnitId.value = user.value.unitId
+  }
+
+  if (selectedUnitId.value) {
+    // Specifically fetch the unit name
+    await fetchUnits('', 1, selectedUnitId.value)
+  } else {
+    await fetchUnits()
+  }
+  
   if (selectedUnitId.value && selectedDate.value) {
     await fetchReport()
   } else {
@@ -191,18 +247,70 @@ onMounted(async () => {
           </div>
           
           <div class="flex flex-wrap items-center gap-3">
-            <!-- Unit Selector -->
-            <div class="form-control">
-              <select 
-                v-model="selectedUnitId" 
-                class="select select-bordered select-sm w-48"
-                :disabled="loadingUnits"
-              >
-                <option value="" disabled>Pilih Unit</option>
-                <option v-for="unit in units" :key="unit.id" :value="unit.id">
-                  {{ unit.name }}
-                </option>
-              </select>
+            <!-- Unit Selector (Admin only) -->
+            <div class="form-control" v-if="isAdmin">
+              <div class="dropdown dropdown-end">
+                <div class="relative">
+                  <input
+                    ref="unitInput"
+                    v-model="unitNameSelect"
+                    type="text"
+                    placeholder="Cari Unit..."
+                    class="input input-bordered input-sm w-64"
+                    @input="(e) => { 
+                      unitSearchQuery = (e.target as HTMLInputElement).value;
+                      handleUnitSearch();
+                    }"
+                    @focus="() => { if (!unitSearchQuery) fetchUnits() }"
+                  />
+                  <div v-if="loadingUnits" class="absolute right-8 top-1/2 -translate-y-1/2">
+                    <span class="loading loading-spinner loading-xs"></span>
+                  </div>
+                </div>
+                
+                <ul class="dropdown-content z-[20] menu p-2 shadow bg-base-100 rounded-box w-full max-h-60 overflow-y-auto mt-1 border border-base-content/10">
+                  <li v-if="units.length === 0 && !loadingUnits">
+                    <a class="text-base-content/50">No units found</a>
+                  </li>
+                  <li v-for="unit in units" :key="unit.id">
+                    <button 
+                      type="button"
+                      @click="() => { 
+                        selectedUnitId = unit.id; 
+                        unitNameSelect = unit.name;
+                        (unitInput as any)?.blur();
+                      }"
+                      :class="{ 'active': selectedUnitId === unit.id }"
+                    >
+                      <div class="flex flex-col items-start">
+                        <span class="font-medium text-xs">{{ unit.name }}</span>
+                        <span class="text-[10px] opacity-50">{{ unit.unitCode }}</span>
+                      </div>
+                    </button>
+                  </li>
+                  <li v-if="unitTotalPages > 1" class="border-t border-base-content/10 mt-2 pt-2">
+                    <div class="flex justify-between items-center px-4 py-2">
+                      <button 
+                        type="button"
+                        class="btn btn-xs" 
+                        :disabled="unitCurrentPage === 1 || loadingUnits"
+                        @click.stop="fetchUnits(unitSearchQuery, unitCurrentPage - 1)"
+                      >«</button>
+                      <span class="text-[10px]">Page {{ unitCurrentPage }} of {{ unitTotalPages }}</span>
+                      <button 
+                        type="button"
+                        class="btn btn-xs" 
+                        :disabled="unitCurrentPage === unitTotalPages || loadingUnits"
+                        @click.stop="fetchUnits(unitSearchQuery, unitCurrentPage + 1)"
+                      >»</button>
+                    </div>
+                  </li>
+                </ul>
+              </div>
+            </div>
+            <div v-else class="flex flex-col px-2">
+               <span class="text-sm font-bold text-primary">{{ unitNameSelect || 'Unit Anda' }}</span>
+               <span class="text-[10px] opacity-60">Unit Terpilih</span>
             </div>
             
             <!-- Date Selector -->

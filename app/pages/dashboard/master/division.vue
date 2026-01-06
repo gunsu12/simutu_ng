@@ -32,6 +32,12 @@ const editingId = ref<string | null>(null)
 const searchQuery = ref('')
 const filterSiteId = ref('')
 
+// Pagination State
+const currentPage = ref(1)
+const itemsPerPage = ref(10)
+const totalItems = ref(0)
+const totalPages = ref(0)
+
 // Form data
 const formData = ref({
   siteId: '',
@@ -44,14 +50,24 @@ const formData = ref({
 const fetchDivisions = async () => {
   loading.value = true
   try {
-    const params: any = {}
+    const params: any = {
+      page: currentPage.value,
+      limit: itemsPerPage.value,
+    }
     if (filterSiteId.value) params.siteId = filterSiteId.value
+    if (searchQuery.value) params.search = searchQuery.value
 
-    const response = await $fetch<{ success: boolean; data: Division[] }>('/api/divisions', {
+    const response = await $fetch<{ 
+      success: boolean; 
+      data: Division[];
+      meta: { total: number; totalPages: number; page: number; limit: number }
+    }>('/api/divisions', {
       query: params,
     })
     if (response.success) {
       divisions.value = response.data
+      totalItems.value = response.meta.total
+      totalPages.value = response.meta.totalPages
     }
   } catch (error) {
     console.error('Failed to fetch divisions:', error)
@@ -60,10 +76,45 @@ const fetchDivisions = async () => {
   }
 }
 
+// Search debounce
+const searchTimeout = ref<ReturnType<typeof setTimeout> | null>(null)
+watch(searchQuery, () => {
+  if (searchTimeout.value) clearTimeout(searchTimeout.value)
+  searchTimeout.value = setTimeout(() => {
+    currentPage.value = 1
+    fetchDivisions()
+  }, 500)
+})
+
 // Handle filter change
 const handleFilterChange = () => {
+  currentPage.value = 1
   fetchDivisions()
 }
+
+// Handle page change
+const handlePageChange = (page: number) => {
+  if (page < 1 || page > totalPages.value) return
+  currentPage.value = page
+  fetchDivisions()
+}
+
+// Computed displayed pages
+const displayedPages = computed(() => {
+  const pages = []
+  const maxDisplayed = 5
+  let start = Math.max(1, currentPage.value - Math.floor(maxDisplayed / 2))
+  let end = Math.min(totalPages.value, start + maxDisplayed - 1)
+  
+  if (end - start + 1 < maxDisplayed) {
+    start = Math.max(1, end - maxDisplayed + 1)
+  }
+  
+  for (let i = Math.max(1, start); i <= end; i++) {
+    pages.push(i)
+  }
+  return pages
+})
 
 // Fetch sites
 const fetchSites = async () => {
@@ -120,7 +171,7 @@ const handleSubmit = async () => {
   try {
     if (isEditMode.value && editingId.value) {
       // Update
-      const response = await $fetch(`/api/divisions/${editingId.value}`, {
+      const response = await $fetch<{ success: boolean }>(`/api/divisions/${editingId.value}`, {
         method: 'PUT',
         body: formData.value,
       })
@@ -130,7 +181,7 @@ const handleSubmit = async () => {
       }
     } else {
       // Create
-      const response = await $fetch('/api/divisions', {
+      const response = await $fetch<{ success: boolean }>('/api/divisions', {
         method: 'POST',
         body: formData.value,
       })
@@ -153,7 +204,7 @@ const handleDelete = async (id: string) => {
 
   loading.value = true
   try {
-    const response = await $fetch(`/api/divisions/${id}`, {
+    const response = await $fetch<{ success: boolean }>(`/api/divisions/${id}`, {
       method: 'DELETE',
     })
     if (response.success) {
@@ -275,6 +326,39 @@ onMounted(() => {
             </tbody>
           </table>
         </div>
+      </div>
+    </div>
+
+    <!-- Pagination Area -->
+    <div v-if="totalPages > 0" class="mt-6 flex flex-col md:flex-row justify-between items-center gap-4">
+      <div class="text-sm text-base-content/60">
+        Showing {{ totalItems > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0 }} to {{ Math.min(currentPage * itemsPerPage, totalItems) }} of {{ totalItems }} entries
+      </div>
+      <div class="join" v-if="totalPages > 1">
+        <button 
+          @click="handlePageChange(currentPage - 1)" 
+          class="join-item btn btn-sm" 
+          :disabled="currentPage === 1 || loading"
+        >
+          Previous
+        </button>
+        <button 
+          v-for="page in displayedPages" 
+          :key="page"
+          @click="handlePageChange(page)"
+          class="join-item btn btn-sm"
+          :class="{ 'btn-primary': currentPage === page }"
+          :disabled="loading"
+        >
+          {{ page }}
+        </button>
+        <button 
+          @click="handlePageChange(currentPage + 1)" 
+          class="join-item btn btn-sm" 
+          :disabled="currentPage === totalPages || loading"
+        >
+          Next
+        </button>
       </div>
     </div>
 

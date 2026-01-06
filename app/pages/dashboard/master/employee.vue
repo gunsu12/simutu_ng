@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { Search, Plus, Edit, Trash2, Upload } from 'lucide-vue-next'
-import { Employee } from '../../../../server/database/schema';
 
 definePageMeta({
   layout: 'dashboard',
@@ -16,6 +15,7 @@ interface Unit {
   id: string
   name: string
   siteId?: string
+  unitCode?: string
 }
 
 interface Employee {
@@ -44,6 +44,17 @@ const editingId = ref<string | null>(null)
 const searchQuery = ref('')
 const picturePreview = ref<string | null>(null)
 const selectedFile = ref<File | null>(null)
+const unitSearchQuery = ref('')
+const unitLoading = ref(false)
+const unitTotalPages = ref(1)
+const unitCurrentPage = ref(1)
+const unitInput = ref<HTMLInputElement | null>(null)
+
+// Pagination State
+const currentPage = ref(1)
+const itemsPerPage = ref(10)
+const totalItems = ref(0)
+const totalPages = ref(0)
 
 // Filter state
 const filterSiteId = ref('')
@@ -63,16 +74,25 @@ const formData = ref({
 const fetchEmployees = async () => {
   loading.value = true
   try {
-    const params: any = {}
+    const params: any = {
+      page: currentPage.value,
+      limit: itemsPerPage.value,
+    }
     if (filterSiteId.value) params.siteId = filterSiteId.value
     if (filterUnitId.value) params.unitId = filterUnitId.value
     if (searchQuery.value) params.search = searchQuery.value
 
-    const response = await $fetch<{ success: boolean; data: Employee[] }>('/api/employees', {
+    const response = await $fetch<{ 
+      success: boolean; 
+      data: Employee[];
+      meta: { total: number; totalPages: number; page: number; limit: number }
+    }>('/api/employees', {
       query: params,
     })
     if (response.success) {
       employees.value = response.data
+      totalItems.value = response.meta.total
+      totalPages.value = response.meta.totalPages
     }
   } catch (error) {
     console.error('Failed to fetch employees:', error)
@@ -94,19 +114,47 @@ const fetchSites = async () => {
 }
 
 // Fetch units
-const fetchUnits = async () => {
+const fetchUnits = async (search = '', page = 1) => {
+  unitLoading.value = true
   try {
-    const response = await $fetch<{ success: boolean; data: Unit[] }>('/api/units')
+    const params: any = {
+      search,
+      page,
+      limit: 10
+    }
+    if (formData.value.siteId) params.siteId = formData.value.siteId
+
+    const response = await $fetch<{ 
+      success: boolean; 
+      data: Unit[];
+      meta: { total: number; totalPages: number; page: number; limit: number }
+    }>('/api/units', {
+      query: params,
+    })
     if (response.success) {
       units.value = response.data
+      unitTotalPages.value = response.meta.totalPages
+      unitCurrentPage.value = response.meta.page
     }
   } catch (error) {
     console.error('Failed to fetch units:', error)
+  } finally {
+    unitLoading.value = false
   }
+}
+
+// Handle unit search with debounce
+let unitSearchTimeout: ReturnType<typeof setTimeout> | null = null
+const handleUnitSearch = () => {
+  if (unitSearchTimeout) clearTimeout(unitSearchTimeout)
+  unitSearchTimeout = setTimeout(() => {
+    fetchUnits(unitSearchQuery.value)
+  }, 500)
 }
 
 // Handle filter changes
 const handleFilterChange = () => {
+  currentPage.value = 1
   fetchEmployees()
 }
 
@@ -115,9 +163,34 @@ const searchTimeout = ref<ReturnType<typeof setTimeout> | null>(null)
 const handleSearch = () => {
   if (searchTimeout.value) clearTimeout(searchTimeout.value)
   searchTimeout.value = setTimeout(() => {
+    currentPage.value = 1
     fetchEmployees()
   }, 500)
 }
+
+// Handle page change
+const handlePageChange = (page: number) => {
+  if (page < 1 || page > totalPages.value) return
+  currentPage.value = page
+  fetchEmployees()
+}
+
+// Computed displayed pages
+const displayedPages = computed(() => {
+  const pages = []
+  const maxDisplayed = 5
+  let start = Math.max(1, currentPage.value - Math.floor(maxDisplayed / 2))
+  let end = Math.min(totalPages.value, start + maxDisplayed - 1)
+  
+  if (end - start + 1 < maxDisplayed) {
+    start = Math.max(1, end - maxDisplayed + 1)
+  }
+  
+  for (let i = Math.max(1, start); i <= end; i++) {
+    pages.push(i)
+  }
+  return pages
+})
 
 // Filtered units based on selected site in form
 const filteredFormUnits = computed(() => {
@@ -153,6 +226,8 @@ const openCreateModal = () => {
     identityNumber: '',
     phoneNumber: '',
   }
+  unitSearchQuery.value = ''
+  fetchUnits()
   modalOpen.value = true
 }
 
@@ -170,6 +245,11 @@ const openEditModal = (employee: Employee) => {
     identityNumber: employee.identityNumber || '',
     phoneNumber: employee.phoneNumber || '',
   }
+  
+  // Set unit search query to the selected unit's name if it exists
+  unitSearchQuery.value = employee.unitName || ''
+  fetchUnits(employee.unitName || '')
+  
   modalOpen.value = true
 }
 
@@ -205,7 +285,7 @@ const handleSubmit = async () => {
 
     if (isEditMode.value && editingId.value) {
       // Update
-      const response = await $fetch(`/api/employees/${editingId.value}`, {
+      const response = await $fetch<{ success: boolean }>(`/api/employees/${editingId.value}`, {
         method: 'PUT',
         body: formDataToSend,
       })
@@ -215,7 +295,7 @@ const handleSubmit = async () => {
       }
     } else {
       // Create
-      const response = await $fetch('/api/employees', {
+      const response = await $fetch<{ success: boolean }>('/api/employees', {
         method: 'POST',
         body: formDataToSend,
       })
@@ -238,7 +318,7 @@ const handleDelete = async (id: string) => {
 
   loading.value = true
   try {
-    const response = await $fetch(`/api/employees/${id}`, {
+    const response = await $fetch<{ success: boolean }>(`/api/employees/${id}`, {
       method: 'DELETE',
     })
     if (response.success) {
@@ -255,6 +335,8 @@ const handleDelete = async (id: string) => {
 // Watch site change and reset unit
 watch(() => formData.value.siteId, () => {
   formData.value.unitId = ''
+  unitSearchQuery.value = ''
+  fetchUnits()
 })
 
 // Load data on mount
@@ -402,6 +484,39 @@ onMounted(() => {
       </div>
     </div>
 
+    <!-- Pagination Area -->
+    <div v-if="totalPages > 0" class="mt-6 flex flex-col md:flex-row justify-between items-center gap-4">
+      <div class="text-sm text-base-content/60">
+        Showing {{ totalItems > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0 }} to {{ Math.min(currentPage * itemsPerPage, totalItems) }} of {{ totalItems }} entries
+      </div>
+      <div class="join" v-if="totalPages > 1">
+        <button 
+          @click="handlePageChange(currentPage - 1)" 
+          class="join-item btn btn-sm" 
+          :disabled="currentPage === 1 || loading"
+        >
+          Previous
+        </button>
+        <button 
+          v-for="page in displayedPages" 
+          :key="page"
+          @click="handlePageChange(page)"
+          class="join-item btn btn-sm"
+          :class="{ 'btn-primary': currentPage === page }"
+          :disabled="loading"
+        >
+          {{ page }}
+        </button>
+        <button 
+          @click="handlePageChange(currentPage + 1)" 
+          class="join-item btn btn-sm" 
+          :disabled="currentPage === totalPages || loading"
+        >
+          Next
+        </button>
+      </div>
+    </div>
+
     <!-- Modal -->
     <Teleport to="body">
       <div v-if="modalOpen" class="modal modal-open">
@@ -483,12 +598,67 @@ onMounted(() => {
               <label class="label">
                 <span class="label-text">Unit</span>
               </label>
-              <select v-model="formData.unitId" class="select select-bordered" :disabled="!formData.siteId">
-                <option value="">{{ formData.siteId ? 'Select Unit' : 'Select Site First' }}</option>
-                <option v-for="unit in filteredFormUnits" :key="unit.id" :value="unit.id">
-                  {{ unit.name }}
-                </option>
-              </select>
+              <div class="dropdown w-full">
+                <div class="relative">
+                  <input
+                    ref="unitInput"
+                    v-model="unitSearchQuery"
+                    type="text"
+                    :placeholder="formData.siteId ? 'Search unit...' : 'Select site first'"
+                    class="input input-bordered w-full"
+                    :disabled="!formData.siteId"
+                    @input="handleUnitSearch"
+                    @focus="() => { if (!unitSearchQuery && formData.siteId) fetchUnits() }"
+                  />
+                  <div v-if="unitLoading" class="absolute right-3 top-1/2 -translate-y-1/2">
+                    <span class="loading loading-spinner loading-xs"></span>
+                  </div>
+                </div>
+                
+                <ul v-if="formData.siteId" class="dropdown-content z-[2] menu p-2 shadow bg-base-100 rounded-box w-full max-h-60 overflow-y-auto mt-1 border border-base-content/10">
+                  <li v-if="units.length === 0 && !unitLoading">
+                    <a class="text-base-content/50">No units found</a>
+                  </li>
+                  <li v-for="unit in units" :key="unit.id">
+                    <button 
+                      type="button"
+                      @click="() => { 
+                        formData.unitId = unit.id; 
+                        unitSearchQuery = unit.name;
+                        (unitInput as any)?.blur();
+                      }"
+                      :class="{ 'active': formData.unitId === unit.id }"
+                    >
+                      <div class="flex flex-col items-start">
+                        <span class="font-medium">{{ unit.name }}</span>
+                        <span class="text-xs opacity-50">{{ unit.unitCode }}</span>
+                      </div>
+                    </button>
+                  </li>
+                  <li v-if="unitTotalPages > 1" class="border-t border-base-content/10 mt-2 pt-2">
+                    <div class="flex justify-between items-center px-4 py-2">
+                      <button 
+                        type="button"
+                        class="btn btn-xs" 
+                        :disabled="unitCurrentPage === 1 || unitLoading"
+                        @click.stop="fetchUnits(unitSearchQuery, unitCurrentPage - 1)"
+                      >«</button>
+                      <span class="text-xs">Page {{ unitCurrentPage }} of {{ unitTotalPages }}</span>
+                      <button 
+                        type="button"
+                        class="btn btn-xs" 
+                        :disabled="unitCurrentPage === unitTotalPages || unitLoading"
+                        @click.stop="fetchUnits(unitSearchQuery, unitCurrentPage + 1)"
+                      >»</button>
+                    </div>
+                  </li>
+                </ul>
+              </div>
+              <input type="hidden" v-model="formData.unitId" />
+              <label class="label" v-if="formData.unitId">
+                <span class="label-text-alt text-success">Selected: {{ unitSearchQuery }}</span>
+                <button type="button" @click="() => { formData.unitId = ''; unitSearchQuery = ''; fetchUnits(); }" class="label-text-alt link link-error">Clear</button>
+              </label>
             </div>
 
             <!-- Identity Number -->

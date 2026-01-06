@@ -5,10 +5,9 @@ definePageMeta({
   layout: 'dashboard'
 })
 
-const selectedMonth = ref('2026-01')
+const selectedMonth = ref(new Date().toISOString().slice(0, 7))
 
 interface UnitReport {
-  id: string
   unit: string
   unitId: string
   indicators: number
@@ -20,26 +19,30 @@ const reportData = ref<UnitReport[]>([])
 const units = ref<any[]>([])
 const loading = ref(false)
 
-// Fetch units
-async function fetchUnits() {
+// Fetch data
+async function fetchData() {
+  loading.value = true
   try {
-    const response = await $fetch<{ success: boolean; data: any[] }>('/api/units')
+    const response = await $fetch<{ success: boolean; data: UnitReport[] }>('/api/reports/summary', {
+      query: { 
+        frequency: 'monthly',
+        period: selectedMonth.value
+      }
+    })
     if (response.success) {
-      units.value = response.data
-      // Generate mock data for demo (replace with real API later)
-      reportData.value = units.value.slice(0, 5).map((unit, index) => ({
-        id: unit.id,
-        unit: unit.name,
-        unitId: unit.id,
-        indicators: Math.floor(Math.random() * 8) + 3,
-        achieved: Math.floor(Math.random() * 6) + 2,
-        percentage: Math.round((Math.random() * 40) + 60)
-      }))
+      reportData.value = response.data
     }
   } catch (error) {
-    console.error('Failed to fetch units:', error)
+    console.error('Failed to fetch summary:', error)
+  } finally {
+    loading.value = false
   }
 }
+
+// Watch for month change
+watch(selectedMonth, () => {
+  fetchData()
+})
 
 // Navigate to print page
 function goToPrintPage(unitId?: string) {
@@ -62,7 +65,7 @@ const overallPercentage = computed(() => {
 })
 
 onMounted(() => {
-  fetchUnits()
+  fetchData()
 })
 </script>
 
@@ -123,7 +126,22 @@ onMounted(() => {
               <th class="text-center">Aksi</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody v-if="loading">
+            <tr v-for="i in 3" :key="i">
+              <td colspan="6" class="text-center py-4">
+                <span class="loading loading-spinner loading-md"></span>
+              </td>
+            </tr>
+          </tbody>
+          <tbody v-else-if="reportData.length === 0">
+            <tr>
+              <td colspan="6" class="text-center py-8 text-base-content/50">
+                <Calendar class="w-12 h-12 mx-auto mb-2 opacity-20" />
+                <p>Tidak ada data untuk bulan ini</p>
+              </td>
+            </tr>
+          </tbody>
+          <tbody v-else>
             <tr v-for="item in reportData" :key="item.unitId">
               <td class="font-medium">{{ item.unit }}</td>
               <td class="text-center">{{ item.indicators }}</td>

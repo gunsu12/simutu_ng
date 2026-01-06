@@ -19,6 +19,7 @@ interface Division {
 interface Employee {
   id: string
   fullName: string
+  nik?: string
 }
 
 interface Unit {
@@ -48,6 +49,17 @@ const isEditMode = ref(false)
 const editingId = ref<string | null>(null)
 const searchQuery = ref('')
 const filterSiteId = ref('')
+const employeeSearchQuery = ref('')
+const employeeLoading = ref(false)
+const employeeTotalPages = ref(1)
+const employeeCurrentPage = ref(1)
+const employeeInput = ref<HTMLInputElement | null>(null)
+
+// Pagination State
+const currentPage = ref(1)
+const itemsPerPage = ref(10)
+const totalItems = ref(0)
+const totalPages = ref(0)
 
 // Form data
 const formData = ref({
@@ -64,14 +76,24 @@ const formData = ref({
 const fetchUnits = async () => {
   loading.value = true
   try {
-    const params: any = {}
+    const params: any = {
+      page: currentPage.value,
+      limit: itemsPerPage.value,
+    }
     if (filterSiteId.value) params.siteId = filterSiteId.value
+    if (searchQuery.value) params.search = searchQuery.value
 
-    const response = await $fetch<{ success: boolean; data: Unit[] }>('/api/units', {
+    const response = await $fetch<{ 
+      success: boolean; 
+      data: Unit[];
+      meta: { total: number; totalPages: number; page: number; limit: number }
+    }>('/api/units', {
       query: params,
     })
     if (response.success) {
       units.value = response.data
+      totalItems.value = response.meta.total
+      totalPages.value = response.meta.totalPages
     }
   } catch (error) {
     console.error('Failed to fetch units:', error)
@@ -80,10 +102,45 @@ const fetchUnits = async () => {
   }
 }
 
+// Search debounce
+const searchTimeout = ref<ReturnType<typeof setTimeout> | null>(null)
+watch(searchQuery, () => {
+  if (searchTimeout.value) clearTimeout(searchTimeout.value)
+  searchTimeout.value = setTimeout(() => {
+    currentPage.value = 1
+    fetchUnits()
+  }, 500)
+})
+
 // Handle filter change
 const handleFilterChange = () => {
+  currentPage.value = 1
   fetchUnits()
 }
+
+// Handle page change
+const handlePageChange = (page: number) => {
+  if (page < 1 || page > totalPages.value) return
+  currentPage.value = page
+  fetchUnits()
+}
+
+// Computed displayed pages
+const displayedPages = computed(() => {
+  const pages = []
+  const maxDisplayed = 5
+  let start = Math.max(1, currentPage.value - Math.floor(maxDisplayed / 2))
+  let end = Math.min(totalPages.value, start + maxDisplayed - 1)
+  
+  if (end - start + 1 < maxDisplayed) {
+    start = Math.max(1, end - maxDisplayed + 1)
+  }
+  
+  for (let i = Math.max(1, start); i <= end; i++) {
+    pages.push(i)
+  }
+  return pages
+})
 
 // Fetch sites
 const fetchSites = async () => {
@@ -110,15 +167,39 @@ const fetchDivisions = async () => {
 }
 
 // Fetch employees
-const fetchEmployees = async () => {
+const fetchEmployees = async (search = '', page = 1) => {
+  employeeLoading.value = true
   try {
-    const response = await $fetch<{ success: boolean; data: Employee[] }>('/api/employees')
+    const response = await $fetch<{ 
+      success: boolean; 
+      data: Employee[];
+      meta: { total: number; totalPages: number; page: number; limit: number }
+    }>('/api/employees', {
+      query: { 
+        search, 
+        page,
+        limit: 10
+      }
+    })
     if (response.success) {
       employees.value = response.data
+      employeeTotalPages.value = response.meta.totalPages
+      employeeCurrentPage.value = response.meta.page
     }
   } catch (error) {
     console.error('Failed to fetch employees:', error)
+  } finally {
+    employeeLoading.value = false
   }
+}
+
+// Handle employee search with debounce
+let employeeSearchTimeout: ReturnType<typeof setTimeout> | null = null
+const handleEmployeeSearch = () => {
+  if (employeeSearchTimeout) clearTimeout(employeeSearchTimeout)
+  employeeSearchTimeout = setTimeout(() => {
+    fetchEmployees(employeeSearchQuery.value)
+  }, 500)
 }
 
 // Open modal for create
@@ -134,6 +215,8 @@ const openCreateModal = () => {
     location: '',
     headOfUnit: '',
   }
+  employeeSearchQuery.value = ''
+  fetchEmployees()
   modalOpen.value = true
 }
 
@@ -150,6 +233,11 @@ const openEditModal = (unit: Unit) => {
     location: unit.location || '',
     headOfUnit: unit.headOfUnit || '',
   }
+  
+  // Set employee search query to the selected employee's name if it exists
+  employeeSearchQuery.value = unit.headOfUnitName || ''
+  fetchEmployees(unit.headOfUnitName || '')
+  
   modalOpen.value = true
 }
 
@@ -183,7 +271,7 @@ const handleSubmit = async () => {
 
     if (isEditMode.value && editingId.value) {
       // Update
-      const response = await $fetch(`/api/units/${editingId.value}`, {
+      const response = await $fetch<{ success: boolean }>(`/api/units/${editingId.value}`, {
         method: 'PUT',
         body: payload,
       })
@@ -193,7 +281,7 @@ const handleSubmit = async () => {
       }
     } else {
       // Create
-      const response = await $fetch('/api/units', {
+      const response = await $fetch<{ success: boolean }>('/api/units', {
         method: 'POST',
         body: payload,
       })
@@ -216,7 +304,7 @@ const handleDelete = async (id: string) => {
 
   loading.value = true
   try {
-    const response = await $fetch(`/api/units/${id}`, {
+    const response = await $fetch<{ success: boolean }>(`/api/units/${id}`, {
       method: 'DELETE',
     })
     if (response.success) {
@@ -345,6 +433,39 @@ onMounted(() => {
       </div>
     </div>
 
+    <!-- Pagination Area -->
+    <div v-if="totalPages > 0" class="mt-6 flex flex-col md:flex-row justify-between items-center gap-4">
+      <div class="text-sm text-base-content/60">
+        Showing {{ totalItems > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0 }} to {{ Math.min(currentPage * itemsPerPage, totalItems) }} of {{ totalItems }} entries
+      </div>
+      <div class="join" v-if="totalPages > 1">
+        <button 
+          @click="handlePageChange(currentPage - 1)" 
+          class="join-item btn btn-sm" 
+          :disabled="currentPage === 1 || loading"
+        >
+          Previous
+        </button>
+        <button 
+          v-for="page in displayedPages" 
+          :key="page"
+          @click="handlePageChange(page)"
+          class="join-item btn btn-sm"
+          :class="{ 'btn-primary': currentPage === page }"
+          :disabled="loading"
+        >
+          {{ page }}
+        </button>
+        <button 
+          @click="handlePageChange(currentPage + 1)" 
+          class="join-item btn btn-sm" 
+          :disabled="currentPage === totalPages || loading"
+        >
+          Next
+        </button>
+      </div>
+    </div>
+
     <!-- Modal -->
     <Teleport to="body">
       <div v-if="modalOpen" class="modal modal-open">
@@ -438,12 +559,66 @@ onMounted(() => {
               <label class="label">
                 <span class="label-text">Head of Unit</span>
               </label>
-              <select v-model="formData.headOfUnit" class="select select-bordered">
-                <option value="">Select Employee</option>
-                <option v-for="employee in employees" :key="employee.id" :value="employee.id">
-                  {{ employee.fullName }}
-                </option>
-              </select>
+              <div class="dropdown w-full">
+                <div class="relative">
+                  <input
+                    ref="employeeInput"
+                    v-model="employeeSearchQuery"
+                    type="text"
+                    placeholder="Search employee..."
+                    class="input input-bordered w-full"
+                    @input="handleEmployeeSearch"
+                    @focus="() => { if (!employeeSearchQuery) fetchEmployees() }"
+                  />
+                  <div v-if="employeeLoading" class="absolute right-3 top-1/2 -translate-y-1/2">
+                    <span class="loading loading-spinner loading-xs"></span>
+                  </div>
+                </div>
+                
+                <ul class="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-full max-h-60 overflow-y-auto mt-1 border border-base-content/10">
+                  <li v-if="employees.length === 0 && !employeeLoading">
+                    <a class="text-base-content/50">No employees found</a>
+                  </li>
+                  <li v-for="employee in employees" :key="employee.id">
+                    <button 
+                      type="button"
+                      @click="() => { 
+                        formData.headOfUnit = employee.id; 
+                        employeeSearchQuery = employee.fullName;
+                        (employeeInput as any)?.blur();
+                      }"
+                      :class="{ 'active': formData.headOfUnit === employee.id }"
+                    >
+                      <div class="flex flex-col items-start">
+                        <span class="font-medium">{{ employee.fullName }}</span>
+                        <span class="text-xs opacity-50">{{ employee.nik }}</span>
+                      </div>
+                    </button>
+                  </li>
+                  <li v-if="employeeTotalPages > 1" class="border-t border-base-content/10 mt-2 pt-2">
+                    <div class="flex justify-between items-center px-4 py-2">
+                      <button 
+                        type="button"
+                        class="btn btn-xs" 
+                        :disabled="employeeCurrentPage === 1 || employeeLoading"
+                        @click.stop="fetchEmployees(employeeSearchQuery, employeeCurrentPage - 1)"
+                      >«</button>
+                      <span class="text-xs">Page {{ employeeCurrentPage }} of {{ employeeTotalPages }}</span>
+                      <button 
+                        type="button"
+                        class="btn btn-xs" 
+                        :disabled="employeeCurrentPage === employeeTotalPages || employeeLoading"
+                        @click.stop="fetchEmployees(employeeSearchQuery, employeeCurrentPage + 1)"
+                      >»</button>
+                    </div>
+                  </li>
+                </ul>
+              </div>
+              <input type="hidden" v-model="formData.headOfUnit" />
+              <label class="label" v-if="formData.headOfUnit">
+                <span class="label-text-alt text-success">Selected: {{ employeeSearchQuery }}</span>
+                <button type="button" @click="() => { formData.headOfUnit = ''; employeeSearchQuery = ''; fetchEmployees(); }" class="label-text-alt link link-error">Clear</button>
+              </label>
             </div>
 
             <!-- Actions -->

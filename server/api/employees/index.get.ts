@@ -1,6 +1,6 @@
 import { db } from '../../database'
 import { employees, units, sites } from '../../database/schema'
-import { eq, and, or, ilike, isNull } from 'drizzle-orm'
+import { eq, and, or, ilike, isNull, sql } from 'drizzle-orm'
 import { generateFileUrl } from '../../utils/s3'
 
 /**
@@ -9,12 +9,12 @@ import { generateFileUrl } from '../../utils/s3'
  */
 function extractS3Key(storedValue: string | null): string | null {
   if (!storedValue) return null
-  
+
   // If it's already a key (no http), return as-is
   if (!storedValue.includes('http')) {
     return storedValue
   }
-  
+
   // Extract key from full URL (remove query string, get last 3 path segments)
   const urlParts = storedValue.split('?')[0]
   return urlParts.split('/').slice(-3).join('/')
@@ -23,20 +23,46 @@ function extractS3Key(storedValue: string | null): string | null {
 export default defineEventHandler(async (event) => {
   try {
     const query = getQuery(event)
-    const { siteId, unitId, search } = query
+    const siteId = query.siteId as string
+    const unitId = query.unitId as string
+    const search = query.search as string
+    const page = parseInt(query.page as string) || 1
+    const limit = parseInt(query.limit as string) || 10
+    const offset = (page - 1) * limit
 
     // Build where conditions
     const conditions = [isNull(employees.deletedAt)]
-    
+
     if (siteId && siteId !== '') {
-      conditions.push(eq(employees.siteId, siteId as string))
-    }
-    
-    if (unitId && unitId !== '') {
-      conditions.push(eq(employees.unitId, unitId as string))
+      conditions.push(eq(employees.siteId, siteId))
     }
 
-    let allEmployees = await db
+    if (unitId && unitId !== '') {
+      conditions.push(eq(employees.unitId, unitId))
+    }
+
+    if (search && search !== '') {
+      conditions.push(
+        or(
+          ilike(employees.fullName, `%${search}%`),
+          ilike(employees.nik, `%${search}%`),
+          ilike(employees.identityNumber, `%${search}%`),
+          ilike(employees.phoneNumber, `%${search}%`)
+        ) as any
+      )
+    }
+
+    const whereClause = and(...conditions)
+
+    // Get total count
+    const countResult = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(employees)
+      .where(whereClause as any)
+
+    const total = Number(countResult[0]?.count) || 0
+
+    const allEmployees = await db
       .select({
         id: employees.id,
         siteId: employees.siteId,
@@ -46,6 +72,7 @@ export default defineEventHandler(async (event) => {
         identityNumber: employees.identityNumber,
         phoneNumber: employees.phoneNumber,
         picture: employees.picture,
+        pictureThumbnail: employees.pictureThumbnail,
         createdAt: employees.createdAt,
         updatedAt: employees.updatedAt,
         siteName: sites.name,
@@ -54,21 +81,11 @@ export default defineEventHandler(async (event) => {
       .from(employees)
       .leftJoin(sites, eq(employees.siteId, sites.id))
       .leftJoin(units, eq(employees.unitId, units.id))
-      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .where(whereClause as any)
       .orderBy(employees.createdAt)
-    
-    // Apply search filter
-    if (search && search !== '') {
-      const searchTerm = (search as string).toLowerCase()
-      allEmployees = allEmployees.filter(
-        (employee) =>
-          employee.nik.toLowerCase().includes(searchTerm) ||
-          employee.fullName.toLowerCase().includes(searchTerm) ||
-          (employee.identityNumber && employee.identityNumber.toLowerCase().includes(searchTerm)) ||
-          (employee.phoneNumber && employee.phoneNumber.toLowerCase().includes(searchTerm))
-      )
-    }
-    
+      .limit(limit)
+      .offset(offset)
+
     // Generate presigned URLs for pictures (use thumbnail for list view)
     const employeesWithSignedUrls = await Promise.all(
       allEmployees.map(async (employee) => {
@@ -95,10 +112,16 @@ export default defineEventHandler(async (event) => {
         return employee
       })
     )
-    
+
     return {
       success: true,
       data: employeesWithSignedUrls,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit)
+      }
     }
   } catch (error: any) {
     return {

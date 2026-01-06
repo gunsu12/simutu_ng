@@ -111,6 +111,7 @@ function closeNotification(id: string) {
 // State
 const searchQuery = ref('')
 const entries = ref<IndicatorEntry[]>([])
+const units = ref<{ id: string, name: string }[]>([])
 const loading = ref(false)
 const modalOpen = ref(false)
 const modalMode = ref<'create' | 'edit'>('create')
@@ -121,6 +122,13 @@ const filterStartDate = ref(new Date().toISOString().split('T')[0])
 const filterEndDate = ref(new Date().toISOString().split('T')[0])
 const filterFrequency = ref<'daily' | 'monthly' | ''>('')
 const filterStatus = ref<string>('')
+const filterUnitId = ref('')
+const unitSearchQuery = ref('')
+const unitLoading = ref(false)
+const unitTotalPages = ref(1)
+const unitCurrentPage = ref(1)
+const unitInput = ref<HTMLInputElement | null>(null)
+const unitNameSelect = ref('')
 
 // Indicator detail modal state
 const selectedIndicatorId = ref('')
@@ -154,9 +162,16 @@ const availableIndicators = ref<Indicator[]>([])
 const loadingIndicators = ref(false)
 
 // Get user info from session
-const { data: session } = await useFetch('/api/auth/session')
-const user = computed(() => session.value?.data?.user)
+const { user } = useAuth()
 const unitId = computed(() => user.value?.unitId || '')
+const isAdmin = computed(() => user.value?.role === 'admin')
+
+// Auto-set filterUnitId for non-admins
+watchEffect(() => {
+  if (!isAdmin.value && unitId.value && !filterUnitId.value) {
+    filterUnitId.value = unitId.value
+  }
+})
 
 // Computed
 const filteredEntries = computed(() => {
@@ -187,6 +202,9 @@ async function fetchEntries() {
     if (filterStatus.value) {
       params.append('status', filterStatus.value)
     }
+    if (filterUnitId.value) {
+      params.append('unitId', filterUnitId.value)
+    }
 
     const queryString = params.toString()
     const url = `/api/indicator-entries${queryString ? '?' + queryString : ''}`
@@ -204,52 +222,54 @@ async function fetchEntries() {
   }
 }
 
-async function fetchAvailableIndicators(frequency: 'daily' | 'monthly') {
-  if (!unitId.value) {
-    console.error('No unit ID found for user:', user.value)
-    showNotification('Unable to load indicators: No unit assigned to your account', 'error')
-    return
-  }
-
-  if(!frequency) {
-    availableIndicators.value = []
-    formData.value.items = []
-    return
-  }
-
-  loadingIndicators.value = true
+async function fetchUnits(search = '', page = 1, fetchById = '') {
+  unitLoading.value = true
   try {
-    const response = await $fetch<{ success: boolean; data: Indicator[] }>(
-      `/api/indicator-entries/unit/${unitId.value}?entryFrequency=${frequency}`
-    )
+    const response = await $fetch<{ 
+      success: boolean; 
+      data: any[];
+      meta: { total: number; totalPages: number; page: number; limit: number }
+    }>('/api/units', {
+      query: { 
+        search, 
+        page, 
+        limit: 10,
+        id: fetchById
+      }
+    })
+    
     if (response.success) {
-      availableIndicators.value = response.data
-      // Initialize items array with all available indicators
-      formData.value.items = response.data.map(indicator => ({
-        indicatorId: indicator.id,
-        indicatorCode: indicator.code,
-        indicatorName: indicator.judul,
-        numeratorValue: null,
-        denominatorValue: null,
-        skor: null,
-        notes: '',
-        numeratorDesc: indicator.numerator || null,
-        denominatorDesc: indicator.denominator || null,
-        targetCalculationFormula: indicator.targetCalculationFormula || null,
-        showDetails: false
-      }))
-      
-      if (response.data.length === 0) {
-        console.warn('No indicators found for unit:', unitId.value, 'frequency:', frequency)
+      if (fetchById) {
+        if (response.data.length > 0) {
+          unitNameSelect.value = response.data[0].name
+        }
+      } else {
+        units.value = response.data
+        unitTotalPages.value = response.meta.totalPages
+        unitCurrentPage.value = response.meta.page
+        
+        if (filterUnitId.value && !unitNameSelect.value) {
+          const currentUnit = units.value.find(u => u.id === filterUnitId.value)
+          if (currentUnit) {
+            unitNameSelect.value = currentUnit.name
+          }
+        }
       }
     }
-  } catch (error: any) {
-    console.error('Failed to fetch indicators:', error)
-    const message = error.data?.message || 'Failed to load indicators. Please try again.'
-    showNotification(message, 'error')
+  } catch (err: any) {
+    console.error('Failed to fetch units:', err)
   } finally {
-    loadingIndicators.value = false
+    unitLoading.value = false
   }
+}
+
+// Handle unit search with debounce
+let unitSearchTimeout: ReturnType<typeof setTimeout> | null = null
+const handleUnitSearch = () => {
+  if (unitSearchTimeout) clearTimeout(unitSearchTimeout)
+  unitSearchTimeout = setTimeout(() => {
+    fetchUnits(unitSearchQuery.value)
+  }, 500)
 }
 
 function openCreateModal() {
@@ -310,6 +330,12 @@ function resetFilters() {
   filterEndDate.value = new Date().toISOString().split('T')[0]
   filterFrequency.value = ''
   filterStatus.value = ''
+  if (isAdmin.value) {
+    filterUnitId.value = ''
+    unitNameSelect.value = ''
+  } else {
+    filterUnitId.value = unitId.value
+  }
   fetchEntries()
 }
 
@@ -477,9 +503,64 @@ function getStatusBadge(status: string) {
 }
 
 // Fetch entries on mount
-onMounted(() => {
+onMounted(async () => {
+  if (isAdmin.value) {
+    fetchUnits()
+  } else if (unitId.value) {
+    filterUnitId.value = unitId.value
+    // Specifically fetch the unit name for this user
+    fetchUnits('', 1, unitId.value)
+  }
   fetchEntries()
 })
+
+async function fetchAvailableIndicators(frequency: 'daily' | 'monthly') {
+  if (!unitId.value) {
+    console.error('No unit ID found for user:', user.value)
+    showNotification('Unable to load indicators: No unit assigned to your account', 'error')
+    return
+  }
+
+  if(!frequency) {
+    availableIndicators.value = []
+    formData.value.items = []
+    return
+  }
+
+  loadingIndicators.value = true
+  try {
+    const response = await $fetch<{ success: boolean; data: Indicator[] }>(
+      `/api/indicator-entries/unit/${unitId.value}?entryFrequency=${frequency}`
+    )
+    if (response.success) {
+      availableIndicators.value = response.data
+      // Initialize items array with all available indicators
+      formData.value.items = response.data.map(indicator => ({
+        indicatorId: indicator.id,
+        indicatorCode: indicator.code,
+        indicatorName: indicator.judul,
+        numeratorValue: null,
+        denominatorValue: null,
+        skor: null,
+        notes: '',
+        numeratorDesc: indicator.numerator || null,
+        denominatorDesc: indicator.denominator || null,
+        targetCalculationFormula: indicator.targetCalculationFormula || null,
+        showDetails: false
+      }))
+      
+      if (response.data.length === 0) {
+        console.warn('No indicators found for unit:', unitId.value, 'frequency:', frequency)
+      }
+    }
+  } catch (error: any) {
+    console.error('Failed to fetch indicators:', error)
+    const message = error.data?.message || 'Failed to load indicators. Please try again.'
+    showNotification(message, 'error')
+  } finally {
+    loadingIndicators.value = false
+  }
+}
 </script>
 
 <template>
@@ -571,7 +652,7 @@ onMounted(() => {
           </div>
 
           <!-- Reset Button -->
-          <div class="form-control flex justify-end">
+          <div :class="['form-control', isAdmin ? 'lg:col-span-1' : 'flex justify-end']">
             <label class="label">
               <span class="label-text text-sm invisible">Action</span>
             </label>
@@ -581,6 +662,80 @@ onMounted(() => {
             >
               Reset Filters
             </button>
+          </div>
+          
+          <!-- Unit Filter (Admin only) -->
+          <div class="form-control lg:col-span-2" v-if="isAdmin">
+            <label class="label">
+              <span class="label-text text-sm font-medium">Unit Filter</span>
+            </label>
+            <div class="dropdown w-full">
+              <div class="relative">
+                <input
+                  ref="unitInput"
+                  v-model="unitNameSelect"
+                  type="text"
+                  placeholder="Cari Unit..."
+                  class="input input-bordered input-sm w-full"
+                  @input="(e) => { 
+                    unitSearchQuery = (e.target as HTMLInputElement).value;
+                    handleUnitSearch();
+                  }"
+                  @focus="() => { if (!unitSearchQuery) fetchUnits() }"
+                />
+                <div v-if="unitLoading" class="absolute right-8 top-1/2 -translate-y-1/2">
+                  <span class="loading loading-spinner loading-xs"></span>
+                </div>
+              </div>
+              
+              <ul class="dropdown-content z-[20] menu p-2 shadow bg-base-100 rounded-box w-full max-h-60 overflow-y-auto mt-1 border border-base-content/10">
+                <li v-if="units.length === 0 && !unitLoading">
+                  <a class="text-base-content/50">No units found</a>
+                </li>
+                <li v-for="unit in units" :key="unit.id">
+                  <button 
+                    type="button"
+                    @click="() => { 
+                      filterUnitId = unit.id; 
+                      unitNameSelect = unit.name;
+                      (unitInput as any)?.blur();
+                      fetchEntries();
+                    }"
+                    :class="{ 'active': filterUnitId === unit.id }"
+                  >
+                    <div class="flex flex-col items-start text-left">
+                      <span class="font-medium text-xs">{{ unit.name }}</span>
+                      <span class="text-[10px] opacity-50">{{ (unit as any).unitCode }}</span>
+                    </div>
+                  </button>
+                </li>
+                <li v-if="unitTotalPages > 1" class="border-t border-base-content/10 mt-2 pt-2">
+                  <div class="flex justify-between items-center px-4 py-2">
+                    <button 
+                      type="button"
+                      class="btn btn-xs" 
+                      :disabled="unitCurrentPage === 1 || unitLoading"
+                      @click.stop="fetchUnits(unitSearchQuery, unitCurrentPage - 1)"
+                    >«</button>
+                    <span class="text-[10px]">Page {{ unitCurrentPage }} of {{ unitTotalPages }}</span>
+                    <button 
+                      type="button"
+                      class="btn btn-xs" 
+                      :disabled="unitCurrentPage === unitTotalPages || unitLoading"
+                      @click.stop="fetchUnits(unitSearchQuery, unitCurrentPage + 1)"
+                    >»</button>
+                  </div>
+                </li>
+              </ul>
+            </div>
+          </div>
+          <div v-else-if="unitId" class="form-control lg:col-span-2">
+            <label class="label">
+              <span class="label-text text-sm font-medium">Your Unit</span>
+            </label>
+            <div class="p-2 bg-base-200 rounded text-sm font-semibold truncate">
+              {{ unitNameSelect || 'Loading...' }}
+            </div>
           </div>
         </div>
       </div>
