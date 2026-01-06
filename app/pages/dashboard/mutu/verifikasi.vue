@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Search, Calendar, Eye, CheckCircle, Clock, AlertTriangle, Filter } from 'lucide-vue-next'
+import { Search, Calendar, Eye, CheckCircle, Clock, AlertTriangle, Filter, History, MessageSquare, ArrowRight, User, Info, Check } from 'lucide-vue-next'
 
 definePageMeta({
   layout: 'dashboard',
@@ -469,21 +469,6 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- Search -->
-    <div class="card bg-base-100 border border-base-300 shadow-sm">
-      <div class="card-body p-4">
-        <div class="relative">
-          <Search class="absolute left-3 top-1/2 transform -translate-y-1/2 text-base-content/40 w-5 h-5" />
-          <input
-            v-model="searchQuery"
-            type="text"
-            placeholder="Cari entri berdasarkan kode, unit, atau divisi..."
-            class="input input-bordered w-full pl-10"
-          />
-        </div>
-      </div>
-    </div>
-
     <!-- Stats Summary -->
     <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
       <div class="stat bg-base-100 border border-base-300 rounded-lg p-4">
@@ -585,134 +570,229 @@ onMounted(() => {
     <!-- Status Update Modal -->
     <Teleport to="body">
       <dialog :class="{ 'modal modal-open': showStatusModal, 'modal': !showStatusModal }">
-        <div class="modal-box max-w-2xl max-h-[90vh] overflow-y-auto">
-          <h3 class="font-bold text-lg mb-4">Update Status Verifikasi</h3>
+        <div class="modal-box max-w-2xl p-0 overflow-hidden border border-base-300 shadow-2xl bg-base-100 ring-1 ring-base-content/5">
+          <!-- Modal Header -->
+          <div class="p-6 border-b border-base-300 bg-base-200/50 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <div class="p-2 bg-primary/10 rounded-lg">
+                <CheckCircle class="w-6 h-6 text-primary" />
+              </div>
+              <div>
+                <h3 class="font-bold text-xl text-base-content">Verifikasi Entri</h3>
+                <p class="text-xs text-base-content/60">Perbarui status dan tinjau riwayat verifikasi</p>
+              </div>
+            </div>
+            <button @click="closeStatusModal" class="btn btn-ghost btn-sm btn-circle">✕</button>
+          </div>
           
-          <div v-if="selectedEntry" class="space-y-4">
-            <!-- Entry Info -->
-            <div class="bg-base-200 p-4 rounded-lg space-y-2">
-              <div class="flex justify-between">
-                <span class="text-sm text-base-content/60">Kode Entri:</span>
-                <span class="font-medium">{{ selectedEntry.entryCode }}</span>
+          <div v-if="selectedEntry" class="p-6 space-y-8 max-h-[70vh] overflow-y-auto custom-scrollbar">
+            <!-- Entry Summary Card -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 bg-base-200/40 p-5 rounded-2xl border border-base-300/50 group transition-all duration-300 hover:bg-base-200/60">
+              <div class="space-y-1">
+                <span class="text-[10px] uppercase tracking-wider font-bold text-base-content/40">Informasi Entri</span>
+                <div class="flex items-center gap-2">
+                  <span class="font-bold text-base text-base-content">{{ selectedEntry.entryCode }}</span>
+                  <span class="badge badge-sm badge-ghost border-base-300">{{ selectedEntry.entryFrequency === 'daily' ? 'Harian' : 'Bulanan' }}</span>
+                </div>
+                <div class="flex items-center gap-1.5 text-sm text-base-content/70">
+                  <User class="w-3.5 h-3.5" />
+                  <span>{{ selectedEntry.unit?.name }}</span>
+                </div>
               </div>
-              <div class="flex justify-between">
-                <span class="text-sm text-base-content/60">Unit:</span>
-                <span class="font-medium">{{ selectedEntry.unit?.name }}</span>
-              </div>
-              <div class="flex justify-between">
-                <span class="text-sm text-base-content/60">Tanggal:</span>
-                <span class="font-medium">{{ formatDate(selectedEntry.entryDate) }}</span>
-              </div>
-              <div class="flex justify-between">
-                <span class="text-sm text-base-content/60">Status Saat Ini:</span>
-                <span :class="['badge badge-sm', getStatusBadge(selectedEntry.status)]">
-                  {{ selectedEntry.status }}
-                </span>
-              </div>
-            </div>
-
-            <!-- Role Info -->
-            <div class="alert alert-info py-2">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-5 h-5">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-              </svg>
-              <span class="text-sm">
-                Role Anda: <strong>{{ user?.role }}</strong> - Dapat mengubah status ke: 
-                <span class="font-semibold">{{ allowedStatuses.join(', ') }}</span>
-              </span>
-            </div>
-
-            <!-- Status Selection -->
-            <div class="form-control">
-              <label class="label">
-                <span class="label-text font-medium">Status Baru <span class="text-error">*</span></span>
-              </label>
-              <div class="grid grid-cols-2 gap-2">
-                <label 
-                  v-for="status in allowedStatuses" 
-                  :key="status"
-                  class="flex items-center gap-2 p-3 border rounded-lg cursor-pointer transition-colors"
-                  :class="newStatus === status ? 'border-primary bg-primary/10' : 'border-base-300 hover:border-primary/50'"
-                >
-                  <input
-                    type="radio"
-                    :value="status"
-                    v-model="newStatus"
-                    class="radio radio-primary radio-sm"
-                  />
-                  <span :class="['badge badge-sm gap-1', getStatusBadge(status)]">
-                    <component :is="getStatusIcon(status)" class="w-3 h-3" />
-                    {{ status }}
-                  </span>
-                </label>
-              </div>
-            </div>
-
-            <!-- Auditor Notes -->
-            <div class="form-control">
-              <label class="label">
-                <span class="label-text font-medium">Catatan Verifikasi</span>
-              </label>
-              <textarea
-                v-model="auditorNotes"
-                class="textarea textarea-bordered h-24"
-                placeholder="Tambahkan catatan verifikasi (opsional)..."
-              ></textarea>
-            </div>
-
-            <!-- Verification History -->
-            <div class="divider">Riwayat Verifikasi</div>
-            
-            <div v-if="loadingLogs" class="flex justify-center py-4">
-              <span class="loading loading-spinner loading-sm"></span>
-            </div>
-            <div v-else-if="verificationLogs.length === 0" class="text-center text-base-content/60 py-4">
-              Belum ada riwayat verifikasi
-            </div>
-            <div v-else class="space-y-3 max-h-48 overflow-y-auto">
-              <div 
-                v-for="log in verificationLogs" 
-                :key="log.id"
-                class="bg-base-200 p-3 rounded-lg text-sm"
-              >
-                <div class="flex items-center justify-between mb-2">
-                  <div class="flex items-center gap-2">
-                    <span :class="['badge badge-xs', getStatusBadge(log.previousStatus)]">
-                      {{ log.previousStatus }}
-                    </span>
-                    <span class="text-base-content/60">→</span>
-                    <span :class="['badge badge-xs', getStatusBadge(log.newStatus)]">
-                      {{ log.newStatus }}
-                    </span>
-                  </div>
-                  <span class="text-xs text-base-content/60">
-                    {{ formatDate(log.createdAt) }}
+              <div class="md:text-right space-y-1">
+                <span class="text-[10px] uppercase tracking-wider font-bold text-base-content/40">Status & Tanggal</span>
+                <div class="flex md:justify-end">
+                  <span :class="['badge badge-sm gap-1 font-medium px-3', getStatusBadge(selectedEntry.status)]">
+                    <component :is="getStatusIcon(selectedEntry.status)" class="w-3 h-3" />
+                    {{ selectedEntry.status.toUpperCase() }}
                   </span>
                 </div>
-                <div class="flex items-center gap-2 text-xs">
-                  <span class="font-medium">{{ log.createdBy?.name || 'Unknown' }}</span>
-                  <span class="badge badge-ghost badge-xs">{{ log.createdBy?.role || '-' }}</span>
+                <div class="flex items-center md:justify-end gap-1.5 text-sm text-base-content/70">
+                  <Calendar class="w-3.5 h-3.5" />
+                  <span>{{ formatDate(selectedEntry.entryDate) }}</span>
                 </div>
-                <p v-if="log.notes" class="mt-2 text-xs text-base-content/70 italic">
-                  "{{ log.notes }}"
+              </div>
+            </div>
+
+            <!-- Role Notification -->
+            <div class="flex items-start gap-3 p-4 bg-info/5 border border-info/20 rounded-xl">
+              <div class="mt-0.5">
+                <Info class="w-5 h-5 text-info" />
+              </div>
+              <div>
+                <h4 class="text-sm font-semibold text-info-content/80">Izin Verifikasi</h4>
+                <p class="text-xs text-info-content/70 mt-0.5">
+                  Role: <span class="font-bold underline decoration-info/30 uppercase tracking-tight">{{ user?.role }}</span>. 
+                  Dapat memverifikasi ke: <span class="font-medium px-1.5 py-0.5 bg-info/10 rounded">{{ allowedStatuses.join(' or ') }}</span>
                 </p>
               </div>
             </div>
+
+            <!-- Status Transition Selection & Notes (Only if not finish) -->
+            <template v-if="selectedEntry.status !== 'finish'">
+              <!-- Status Transition Selection -->
+              <div class="space-y-4">
+                <div class="flex items-center justify-between">
+                  <h4 class="text-sm font-bold uppercase tracking-tight text-base-content/60 flex items-center gap-2">
+                    <ArrowRight class="w-4 h-4" />
+                    Pilih Status Baru
+                  </h4>
+                  <span class="text-[10px] bg-error text-error-content px-2 py-0.5 rounded-full font-bold">WAJIB</span>
+                </div>
+                
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <button 
+                    v-for="status in allowedStatuses" 
+                    :key="status"
+                    @click="newStatus = status"
+                    class="relative flex flex-col items-start p-4 rounded-xl border-2 transition-all duration-300 group overflow-hidden"
+                    :class="newStatus === status 
+                      ? 'border-primary bg-primary/5 ring-1 ring-primary' 
+                      : 'border-base-300 hover:bg-base-200'"
+                  >
+                    <div class="flex items-center justify-between w-full mb-3">
+                      <div :class="['p-2 rounded-lg transition-colors', newStatus === status ? 'bg-primary text-primary-content' : 'bg-base-300 text-base-content/50 group-hover:bg-primary/20 group-hover:text-primary']">
+                        <component :is="getStatusIcon(status)" class="w-5 h-5" />
+                      </div>
+                      <div v-if="newStatus === status" class="w-5 h-5 bg-primary text-primary-content rounded-full flex items-center justify-center">
+                        <Check class="w-3 h-3" />
+                      </div>
+                      <div v-else class="w-5 h-5 border-2 border-base-300 rounded-full"></div>
+                    </div>
+                    <span class="font-bold text-base transition-colors capitalize" :class="newStatus === status ? 'text-primary' : 'text-base-content/70'">
+                      {{ status }}
+                    </span>
+                    <span class="text-[10px] text-base-content/40 font-medium uppercase mt-1">Transisi ke {{ status }}</span>
+                    <div v-if="newStatus === status" class="absolute -right-4 -bottom-4 opacity-5 pointer-events-none transform -rotate-12 transition-all duration-500">
+                      <component :is="getStatusIcon(status)" class="w-24 h-24" />
+                    </div>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Notes Section -->
+              <div class="space-y-2">
+                <h4 class="text-sm font-bold uppercase tracking-tight text-base-content/60 flex items-center gap-2">
+                  <MessageSquare class="w-4 h-4" />
+                  Catatan Verifikasi
+                </h4>
+                <textarea
+                  v-model="auditorNotes"
+                  class="textarea textarea-bordered w-full h-28 focus:border-primary focus:ring-1 focus:ring-primary transition-all text-sm leading-relaxed custom-scrollbar bg-base-200/30"
+                  placeholder="Tuliskan alasan atau catatan tambahan di sini... (opsional)"
+                ></textarea>
+              </div>
+            </template>
+
+            <!-- Finished Notice -->
+            <div v-else class="flex flex-col items-center justify-center p-8 bg-success/5 border border-success/20 rounded-2xl text-center">
+              <div class="w-16 h-16 bg-success/10 rounded-full flex items-center justify-center mb-4">
+                <CheckCircle class="w-10 h-10 text-success" />
+              </div>
+              <h4 class="text-lg font-bold text-success">Verifikasi Selesai</h4>
+              <p class="text-sm text-base-content/60 mt-2 max-w-xs">
+                Entri ini telah mencapai status final dan tidak dapat diubah lagi. Silakan tinjau riwayat aktivitas di bawah ini.
+              </p>
+            </div>
+
+            <!-- Timeline Section -->
+            <div class="space-y-4 pt-4">
+              <div class="flex items-center justify-between">
+                <h4 class="text-sm font-bold uppercase tracking-tight text-base-content/60 flex items-center gap-2">
+                  <History class="w-4 h-4" />
+                  Riwayat Aktivitas
+                </h4>
+                <div v-if="loadingLogs" class="loading loading-spinner loading-xs text-primary"></div>
+              </div>
+              
+              <div v-if="verificationLogs.length === 0" class="flex flex-col items-center justify-center py-10 px-4 bg-base-200/30 rounded-2xl border-2 border-dashed border-base-300">
+                <div class="p-4 bg-base-300/50 rounded-full mb-3">
+                  <History class="w-8 h-8 text-base-content/20" />
+                </div>
+                <p class="text-sm text-base-content/40 font-medium">Belum ada riwayat verifikasi untuk entri ini</p>
+              </div>
+              
+              <div v-else class="relative space-y-6 before:absolute before:left-[17px] before:top-2 before:bottom-2 before:w-[2px] before:bg-base-300">
+                <div 
+                  v-for="(log, index) in verificationLogs" 
+                  :key="log.id"
+                  class="relative pl-10 group"
+                >
+                  <!-- Timeline Dot -->
+                  <div class="absolute left-0 top-1.5 w-[36px] h-[36px] flex items-center justify-center z-10">
+                    <div class="w-3 h-3 rounded-full bg-base-300 border-[3px] border-base-100 group-first:bg-primary group-first:w-4 group-first:h-4 transition-all"
+                         :class="{'animate-pulse bg-primary/50': index === 0}"></div>
+                  </div>
+                  
+                  <div class="bg-base-200/50 hover:bg-base-200 rounded-xl p-4 border border-base-300/50 transition-all duration-300 group-hover:bg-base-200">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+                      <div class="flex items-center gap-2 flex-wrap">
+                        <span :class="['badge badge-sm font-bold', getStatusBadge(log.previousStatus)]">
+                          {{ log.previousStatus.toUpperCase() }}
+                        </span>
+                        <ArrowRight class="w-3 h-3 text-base-content/30" />
+                        <span :class="['badge badge-sm font-bold', getStatusBadge(log.newStatus)]">
+                          {{ log.newStatus.toUpperCase() }}
+                        </span>
+                      </div>
+                      <span class="text-[10px] font-bold text-base-content/40 bg-base-300/50 px-2 py-0.5 rounded">
+                        {{ formatDate(log.createdAt) }}
+                      </span>
+                    </div>
+                    
+                    <div class="flex items-center gap-3">
+                      <div class="avatar placeholder">
+                        <div class="bg-primary/10 text-primary rounded-full w-8 h-8 ring-2 ring-primary/20">
+                          <span class="text-xs font-bold">{{ log.createdBy?.name?.charAt(0) || '?' }}</span>
+                        </div>
+                      </div>
+                      <div class="flex flex-col">
+                        <span class="text-sm font-bold text-base-content">{{ log.createdBy?.name || 'Unknown' }}</span>
+                        <span class="text-[10px] text-primary/70 uppercase tracking-wider font-bold">{{ log.createdBy?.role || 'Staff' }}</span>
+                      </div>
+                    </div>
+                    
+                    <div v-if="log.notes" class="mt-3 p-3 bg-base-100/50 rounded-lg border border-base-300 shadow-inner group-hover:bg-base-100 transition-colors">
+                      <div class="flex gap-2">
+                        <MessageSquare class="w-3 h-3 text-primary/50 mt-0.5" />
+                        <p class="text-sm text-base-content italic leading-relaxed">
+                          "{{ log.notes }}"
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
-          <div class="modal-action">
-            <button class="btn" @click="closeStatusModal" :disabled="updatingStatus">Batal</button>
+          <!-- Modal Action -->
+          <div class="p-6 border-t border-base-300 bg-base-200/50 flex flex-col sm:flex-row gap-3 sm:justify-end">
             <button 
-              class="btn btn-primary" 
+              class="btn btn-ghost order-2 sm:order-1 font-bold text-base-content/60 hover:text-base-content" 
+              @click="closeStatusModal" 
+              :disabled="updatingStatus"
+            >
+              {{ selectedEntry?.status === 'finish' ? 'TUTUP' : 'BATAL' }}
+            </button>
+            <button 
+              v-if="selectedEntry && selectedEntry.status !== 'finish'"
+              class="btn btn-primary px-8 order-1 sm:order-2 font-bold shadow-lg shadow-primary/20 gap-2" 
               @click="updateEntryStatus"
               :disabled="updatingStatus || !newStatus || allowedStatuses.length === 0"
             >
-              <span v-if="updatingStatus" class="loading loading-spinner loading-sm"></span>
-              {{ updatingStatus ? 'Menyimpan...' : 'Simpan' }}
+              <template v-if="updatingStatus">
+                <span class="loading loading-spinner loading-sm"></span>
+                MEMPROSES...
+              </template>
+              <template v-else>
+                <CheckCircle class="w-4 h-4" />
+                SIMPAN PERUBAHAN
+              </template>
             </button>
           </div>
         </div>
-        <form method="dialog" class="modal-backdrop" @click="closeStatusModal">
+        <form method="dialog" class="modal-backdrop bg-base-content/40" @click="closeStatusModal">
           <button>close</button>
         </form>
       </dialog>
@@ -756,19 +836,36 @@ onMounted(() => {
 </template>
 
 <style scoped>
+.custom-scrollbar::-webkit-scrollbar {
+  width: 5px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: hsl(var(--bc) / 0.1);
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--bc) / 0.2);
+}
+
 .notification-enter-active,
 .notification-leave-active {
-  transition: all 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .notification-enter-from {
   opacity: 0;
-  transform: translateX(30px);
+  transform: translateX(30px) scale(0.95);
 }
 
 .notification-leave-to {
   opacity: 0;
-  transform: translateX(30px);
+  transform: translateX(30px) scale(0.95);
 }
 
 .notification-move {

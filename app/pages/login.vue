@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { LogIn } from 'lucide-vue-next'
+import { LogIn, ShieldCheck } from 'lucide-vue-next'
 
 definePageMeta({
   layout: false,
@@ -101,8 +101,8 @@ const handleLogin = async () => {
         <div class="card bg-base-100 lg:border-none lg:shadow-none shadow-xl overflow-hidden">
           <div class="card-body p-0 sm:p-8">
             <div class="mb-8">
-              <h2 class="text-3xl font-bold text-base-content mb-2">Welcome Back</h2>
-              <p class="text-base-content/60">Please enter your details to sign in.</p>
+              <h2 class="text-3xl font-bold text-base-content mb-2">Selamat Datang</h2>
+              <p class="text-base-content/60">Silakan masukkan detail akun Anda untuk masuk ke dashboard.</p>
             </div>
 
             <!-- Error Alert -->
@@ -119,7 +119,7 @@ const handleLogin = async () => {
             <form @submit.prevent="handleLogin" class="space-y-5">
               <div class="form-control">
                 <label class="label pb-1">
-                  <span class="label-text font-semibold uppercase text-xs tracking-wider text-base-content/60">Email Address</span>
+                  <span class="label-text font-semibold uppercase text-xs tracking-wider text-base-content/60">Alamat Email</span>
                 </label>
                 <input 
                   v-model="email"
@@ -136,7 +136,7 @@ const handleLogin = async () => {
                   <label class="label p-0">
                     <span class="label-text font-semibold uppercase text-xs tracking-wider text-base-content/60">Password</span>
                   </label>
-                  <a href="#" class="text-xs font-semibold text-primary hover:underline transition-all">Forgot Password?</a>
+                  <a href="#" class="text-xs font-semibold text-primary hover:underline transition-all">Lupa Password?</a>
                 </div>
                 <input 
                   v-model="password"
@@ -151,7 +151,7 @@ const handleLogin = async () => {
               <div class="form-control mt-4">
                 <label class="label cursor-pointer justify-start gap-3">
                   <input type="checkbox" class="checkbox checkbox-primary checkbox-sm border-base-300" />
-                  <span class="label-text text-sm font-medium">Remember me for 30 days</span>
+                  <span class="label-text text-sm font-medium">Ingat saya selama 30 hari</span>
                 </label>
               </div>
 
@@ -162,20 +162,38 @@ const handleLogin = async () => {
               >
                 <span v-if="loading" class="loading loading-spinner loading-sm"></span>
                 <div v-else class="flex items-center justify-center gap-2">
-                  <span class="font-bold">Sign In</span>
+                  <span class="font-bold">Masuk Sekarang</span>
                   <LogIn class="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                 </div>
+              </button>
+
+              <div class="relative py-2">
+                <div class="absolute inset-0 flex items-center">
+                  <div class="w-full border-t border-base-300"></div>
+                </div>
+                <div class="relative flex justify-center text-xs uppercase">
+                  <span class="bg-base-100 px-2 text-base-content/40 font-bold">Atau</span>
+                </div>
+              </div>
+
+              <button 
+                type="button"
+                @click="navigateTo('/api/auth/login/sso', { external: true })"
+                class="btn btn-outline btn-secondary w-full h-12 border-2 hover:bg-secondary/10 hover:text-secondary transition-all duration-300 flex items-center justify-center gap-2"
+              >
+                <ShieldCheck class="w-5 h-5" />
+                <span class="font-bold">Masuk dengan SSO</span>
               </button>
             </form>
 
             <!-- Demo Credentials -->
-            <div class="mt-10">
+            <!-- <div class="mt-10">
               <div class="relative">
                 <div class="absolute inset-0 flex items-center">
                   <div class="w-full border-t border-base-300"></div>
                 </div>
                 <div class="relative flex justify-center text-xs uppercase">
-                  <span class="bg-base-100 px-2 text-base-content/40 font-bold">Demo Access</span>
+                  <span class="bg-base-100 px-2 text-base-content/40 font-bold">Akses Demo</span>
                 </div>
               </div>
               
@@ -191,7 +209,7 @@ const handleLogin = async () => {
                   </div>
                 </div>
               </div>
-            </div>
+            </div> -->
           </div>
         </div>
       </div>

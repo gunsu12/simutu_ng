@@ -278,7 +278,7 @@ watch(() => user.value, (newUser) => {
   <aside
     class="h-full bg-base-200 border-r border-base-300 transition-all duration-300 ease-in-out lg:static lg:translate-x-0"
     :class="[
-      'fixed inset-y-0 left-0 z-50 w-64 transform',
+      'fixed inset-y-0 left-0 z-50 w-64',
       isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
     ]"
   >
@@ -417,18 +417,64 @@ watch(() => user.value, (newUser) => {
 </template>
 
 <style scoped>
-/* Menu item hover state */
-.menu li > div {
-  padding: 0.5rem 0.75rem;
-  border-radius: 0.5rem;
+/* Custom menu styling */
+.menu :where(li:not(.menu-title) > :not(ul)) {
+  padding: 0.625rem 0.875rem;
+  border-radius: 0.75rem;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  margin-bottom: 2px;
 }
 
-.menu li > div:hover {
-  background-color: oklch(var(--b3));
+/* Menu item hover state - Clean & Distinct */
+.menu li > div:hover, 
+.menu li > a:not(.active):hover {
+  background-color: hsl(var(--p) / 0.12);
+  color: hsl(var(--p));
+}
+
+.menu li > div {
+  transition: background-color 0.2s ease;
+}
+
+/* Active item state - Premium Blue Theme */
+.menu li > a.active {
+  background-color: hsl(var(--p));
+  color: hsl(var(--pc));
+  font-weight: 600;
+  box-shadow: 0 4px 12px -2px hsl(var(--p) / 0.3);
+}
+
+.menu li > a.active:hover {
+  background-color: hsl(var(--p) / 0.9);
+  color: hsl(var(--pc));
+}
+
+/* Parent active indicator */
+.text-primary {
+  color: hsl(var(--p)) !important;
+  font-weight: 600;
 }
 
 /* Smooth icon rotation */
 .rotate-180 {
   transform: rotate(180deg);
+}
+
+/* Custom scrollbar for navigation */
+nav::-webkit-scrollbar {
+  width: 4px;
+}
+
+nav::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+nav::-webkit-scrollbar-thumb {
+  background: hsl(var(--bc) / 0.1);
+  border-radius: 10px;
+}
+
+nav::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--bc) / 0.2);
 }
 </style>
