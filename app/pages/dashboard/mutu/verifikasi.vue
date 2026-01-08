@@ -106,8 +106,11 @@ const units = ref<Unit[]>([])
 
 // Filter state
 const now = new Date()
-const filterStartDate = ref(new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0])
-const filterEndDate = ref(new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0])
+const lastWeek = new Date(now)
+lastWeek.setDate(now.getDate() - 6)
+
+const filterStartDate = ref(lastWeek.toISOString().split('T')[0])
+const filterEndDate = ref(now.toISOString().split('T')[0])
 const filterFrequency = ref<'daily' | 'monthly' | ''>('')
 const filterStatus = ref<string>('')
 const filterDivisionId = ref<string>('')
@@ -135,6 +138,8 @@ const isAuditor = computed(() => user.value?.role === 'auditor' || user.value?.r
 // Role-based allowed statuses
 const allowedStatuses = computed(() => {
   const role = user.value?.role
+  if (!role) return []
+  
   switch (role) {
     case 'user':
       return ['proposed']
@@ -189,7 +194,7 @@ async function fetchEntries() {
     }
   } catch (error: any) {
     console.error('Failed to fetch entries:', error)
-    const message = error.data?.message || error.message || 'Failed to fetch entries'
+    const message = error.data?.message || error.message || 'Gagal mengambil entri'
     showNotification(message, 'error')
   } finally {
     loading.value = false
@@ -220,8 +225,11 @@ async function fetchUnits() {
 
 function resetFilters() {
   const now = new Date()
-  filterStartDate.value = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0]
-  filterEndDate.value = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0]
+  const lastWeek = new Date(now)
+  lastWeek.setDate(now.getDate() - 6)
+
+  filterStartDate.value = lastWeek.toISOString().split('T')[0]
+  filterEndDate.value = now.toISOString().split('T')[0]
   filterFrequency.value = ''
   filterStatus.value = ''
   filterDivisionId.value = ''
@@ -314,6 +322,16 @@ function getStatusIcon(status: string) {
   }
 }
 
+function getStatusLabel(status: string) {
+  switch (status) {
+    case 'proposed': return 'Diajukan'
+    case 'checked': return 'Terverifikasi'
+    case 'pending': return 'Tertunda'
+    case 'finish': return 'Selesai'
+    default: return status
+  }
+}
+
 function formatDate(dateStr: string | Date) {
   const date = new Date(dateStr)
   return date.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })
@@ -348,11 +366,11 @@ onMounted(() => {
       <div class="flex items-center gap-2">
         <span v-if="isManager" class="badge badge-info badge-lg gap-2">
           <Eye class="w-4 h-4" />
-          Manager View
+          Tampilan Manajer
         </span>
         <span v-else class="badge badge-primary badge-lg gap-2">
           <CheckCircle class="w-4 h-4" />
-          Auditor View
+          Tampilan Auditor
         </span>
       </div>
     </div>
@@ -452,10 +470,10 @@ onMounted(() => {
               class="select select-bordered select-sm"
             >
               <option value="">Semua Status</option>
-              <option value="proposed">Proposed</option>
-              <option value="checked">Checked</option>
-              <option value="pending">Pending</option>
-              <option value="finish">Finish</option>
+              <option value="proposed">Diajukan</option>
+              <option value="checked">Terverifikasi</option>
+              <option value="pending">Tertunda</option>
+              <option value="finish">Selesai</option>
             </select>
           </div>
         </div>
@@ -476,15 +494,15 @@ onMounted(() => {
         <div class="stat-value text-2xl">{{ entries.length }}</div>
       </div>
       <div class="stat bg-warning/10 border border-warning/30 rounded-lg p-4">
-        <div class="stat-title text-xs">Proposed</div>
+        <div class="stat-title text-xs">Diajukan</div>
         <div class="stat-value text-2xl text-warning">{{ entries.filter(e => e.status === 'proposed').length }}</div>
       </div>
       <div class="stat bg-info/10 border border-info/30 rounded-lg p-4">
-        <div class="stat-title text-xs">Checked</div>
+        <div class="stat-title text-xs">Terverifikasi</div>
         <div class="stat-value text-2xl text-info">{{ entries.filter(e => e.status === 'checked').length }}</div>
       </div>
       <div class="stat bg-success/10 border border-success/30 rounded-lg p-4">
-        <div class="stat-title text-xs">Finish</div>
+        <div class="stat-title text-xs">Selesai</div>
         <div class="stat-value text-2xl text-success">{{ entries.filter(e => e.status === 'finish').length }}</div>
       </div>
     </div>
@@ -539,7 +557,7 @@ onMounted(() => {
                 <td>
                   <span :class="['badge badge-sm gap-1', getStatusBadge(entry.status)]">
                     <component :is="getStatusIcon(entry.status)" class="w-3 h-3" />
-                    {{ entry.status }}
+                    {{ getStatusLabel(entry.status) }}
                   </span>
                 </td>
                 <td>
@@ -604,7 +622,7 @@ onMounted(() => {
                 <div class="flex md:justify-end">
                   <span :class="['badge badge-sm gap-1 font-medium px-3', getStatusBadge(selectedEntry.status)]">
                     <component :is="getStatusIcon(selectedEntry.status)" class="w-3 h-3" />
-                    {{ selectedEntry.status.toUpperCase() }}
+                    {{ getStatusLabel(selectedEntry.status).toUpperCase() }}
                   </span>
                 </div>
                 <div class="flex items-center md:justify-end gap-1.5 text-sm text-base-content/70">
@@ -660,9 +678,9 @@ onMounted(() => {
                       <div v-else class="w-5 h-5 border-2 border-base-300 rounded-full"></div>
                     </div>
                     <span class="font-bold text-base transition-colors capitalize" :class="newStatus === status ? 'text-primary' : 'text-base-content/70'">
-                      {{ status }}
+                      {{ getStatusLabel(status) }}
                     </span>
-                    <span class="text-[10px] text-base-content/40 font-medium uppercase mt-1">Transisi ke {{ status }}</span>
+                    <span class="text-[10px] text-base-content/40 font-medium uppercase mt-1">Transisi ke {{ getStatusLabel(status) }}</span>
                     <div v-if="newStatus === status" class="absolute -right-4 -bottom-4 opacity-5 pointer-events-none transform -rotate-12 transition-all duration-500">
                       <component :is="getStatusIcon(status)" class="w-24 h-24" />
                     </div>
@@ -728,11 +746,11 @@ onMounted(() => {
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
                       <div class="flex items-center gap-2 flex-wrap">
                         <span :class="['badge badge-sm font-bold', getStatusBadge(log.previousStatus)]">
-                          {{ log.previousStatus.toUpperCase() }}
+                          {{ getStatusLabel(log.previousStatus).toUpperCase() }}
                         </span>
                         <ArrowRight class="w-3 h-3 text-base-content/30" />
                         <span :class="['badge badge-sm font-bold', getStatusBadge(log.newStatus)]">
-                          {{ log.newStatus.toUpperCase() }}
+                          {{ getStatusLabel(log.newStatus).toUpperCase() }}
                         </span>
                       </div>
                       <span class="text-[10px] font-bold text-base-content/40 bg-base-300/50 px-2 py-0.5 rounded">
@@ -747,7 +765,7 @@ onMounted(() => {
                         </div>
                       </div>
                       <div class="flex flex-col">
-                        <span class="text-sm font-bold text-base-content">{{ log.createdBy?.name || 'Unknown' }}</span>
+                        <span class="text-sm font-bold text-base-content">{{ log.createdBy?.name || 'Tidak diketahui' }}</span>
                         <span class="text-[10px] text-primary/70 uppercase tracking-wider font-bold">{{ log.createdBy?.role || 'Staff' }}</span>
                       </div>
                     </div>
@@ -793,7 +811,7 @@ onMounted(() => {
           </div>
         </div>
         <form method="dialog" class="modal-backdrop bg-base-content/40" @click="closeStatusModal">
-          <button>close</button>
+          <button>tutup</button>
         </form>
       </dialog>
     </Teleport>

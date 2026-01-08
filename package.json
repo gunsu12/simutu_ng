@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "build": "nuxt build",
-    "dev": "nuxt dev",
+    "dev": "nuxt dev --host",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
@@ -34,6 +34,7 @@
     "drizzle-orm": "^0.45.1",
     "lucia": "^3.2.2",
     "lucide-vue-next": "^0.562.0",
+    "mysql2": "^3.16.0",
     "nuxt": "^4.2.2",
     "pinia": "^3.0.4",
     "postgres": "^3.4.7",

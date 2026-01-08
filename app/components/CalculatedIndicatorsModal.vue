@@ -112,6 +112,16 @@ function checkTargetAchievement(
     label: achieved ? 'Tercapai' : 'Tidak Tercapai' 
   }
 }
+
+function getStatusLabel(status: string) {
+  switch (status) {
+    case 'proposed': return 'Diajukan'
+    case 'checked': return 'Terverifikasi'
+    case 'pending': return 'Tertunda'
+    case 'finish': return 'Selesai'
+    default: return status
+  }
+}
 </script>
 
 <template>
@@ -124,10 +134,10 @@ function checkTargetAchievement(
       <!-- Modal Content -->
       <div class="relative bg-base-100 rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto p-6">
         <h2 class="text-xl font-bold mb-4">
-          Calculated Indicators - {{ selectedEntry?.entryCode }}
+          Indikator Terkalkulasi - {{ selectedEntry?.entryCode }}
         </h2>
         <p class="text-base-content/60 mb-4">
-          Entry Date: {{ selectedEntry?.entryDate ? new Date(selectedEntry.entryDate).toLocaleDateString() : 'N/A' }} - Frequency: {{ selectedEntry?.entryFrequency }} - Status: {{ selectedEntry?.status }}
+          Tanggal Entri: {{ selectedEntry?.entryDate ? new Date(selectedEntry.entryDate).toLocaleDateString() : 'N/A' }} - Frekuensi: {{ selectedEntry?.entryFrequency === 'daily' ? 'Harian' : 'Bulanan' }} - Status: {{ getStatusLabel(selectedEntry?.status || '') }}
         </p>
 
         <div v-if="selectedEntry?.items && selectedEntry.items.length > 0" class="space-y-4">
@@ -141,16 +151,16 @@ function checkTargetAchievement(
               <div class="flex items-start justify-between gap-2">
                 <div>
                   <h4 class="font-bold text-base">{{ item.indicator?.code }} - {{ item.indicator?.judul }}</h4>
-                  <p class="text-sm text-base-content/60 mt-1">{{ item.notes || 'No notes' }}</p>
+                  <p class="text-sm text-base-content/60 mt-1">{{ item.notes || 'Tidak ada catatan' }}</p>
                 </div>
                 <div class="flex gap-2 items-center">
-                  <span v-if="item.isAlreadyChecked" class="badge badge-success">Checked</span>
-                  <span v-if="item.isNeedPDCA" class="badge badge-warning">Needs PDCA</span>
+                  <span v-if="item.isAlreadyChecked" class="badge badge-success">Selesai diperiksa</span>
+                  <span v-if="item.isNeedPDCA" class="badge badge-warning">Butuh PDCA</span>
                   <button
                     v-if="item.indicator?.id"
                     type="button"
                     class="btn btn-ghost btn-sm btn-square"
-                    :title="`View ${item.indicator?.code || 'Indicator'} Details`"
+                    :title="`Lihat Detail ${item.indicator?.code || 'Indikator'}`"
                     @click="emit('viewDetail', item.indicator.id)"
                   >
                     <Eye class="w-4 h-4" />
@@ -162,7 +172,7 @@ function checkTargetAchievement(
 
               <!-- Formula Definition -->
               <div v-if="item.indicator?.numerator || item.indicator?.denominator" class="mb-4">
-                <h5 class="font-semibold text-sm mb-2">Formula Definition:</h5>
+                <h5 class="font-semibold text-sm mb-2">Definisi Formula:</h5>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
                   <div v-if="item.indicator?.numerator" class="bg-base-300 p-3 rounded">
                     <p class="font-medium mb-1">Numerator:</p>
@@ -200,15 +210,15 @@ function checkTargetAchievement(
               <!-- Calculated Values -->
               <div class="grid grid-cols-1 md:grid-cols-5 gap-3">
                 <div class="bg-base-100 p-3 rounded border border-base-300">
-                  <p class="text-xs text-base-content/60 mb-1">Numerator Value</p>
+                  <p class="text-xs text-base-content/60 mb-1">Nilai Numerator</p>
                   <p class="text-lg font-bold">{{ item.numeratorValue || '-' }}</p>
                 </div>
                 <div class="bg-base-100 p-3 rounded border border-base-300">
-                  <p class="text-xs text-base-content/60 mb-1">Denominator Value</p>
+                  <p class="text-xs text-base-content/60 mb-1">Nilai Denominator</p>
                   <p class="text-lg font-bold">{{ item.denominatorValue || '-' }}</p>
                 </div>
                 <div class="bg-base-100 p-3 rounded border border-base-300">
-                  <p class="text-xs text-base-content/60 mb-1">Result ({{ item.indicator?.targetCalculationFormula || 'N/D' }})</p>
+                  <p class="text-xs text-base-content/60 mb-1">Hasil ({{ item.indicator?.targetCalculationFormula || 'N/D' }})</p>
                   <p class="text-lg font-bold">
                     {{
                       item.numeratorDenominatorResult
@@ -222,7 +232,7 @@ function checkTargetAchievement(
                   <p class="text-lg font-bold">{{ item.skor || '-' }}</p>
                 </div>
                 <div class="bg-base-100 p-3 rounded border border-base-300">
-                  <p class="text-xs text-base-content/60 mb-1">Point</p>
+                  <p class="text-xs text-base-content/60 mb-1">Poin</p>
                   <p class="text-lg font-bold">{{ item.skor ? item.skor * (item.indicator?.targetWeight || 0) : '-' }}</p>
                 </div>
               </div>
@@ -233,7 +243,7 @@ function checkTargetAchievement(
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
           </svg>
-          <span>No indicators found for this entry</span>
+          <span>Indikator tidak ditemukan untuk entri ini</span>
         </div>
 
         <div class="flex justify-end mt-6">
@@ -242,7 +252,7 @@ function checkTargetAchievement(
             @click="emit('close')"
             class="btn btn-primary"
           >
-            Close
+            Tutup
           </button>
         </div>
       </div>

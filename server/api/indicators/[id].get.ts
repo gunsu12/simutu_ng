@@ -9,12 +9,12 @@ import { generateFileUrl } from '../../utils/s3'
  */
 function extractS3Key(storedValue: string | null): string | null {
   if (!storedValue) return null
-  
+
   // If it's already a key (no http), return as-is
   if (!storedValue.includes('http')) {
     return storedValue
   }
-  
+
   // Extract key from full URL (remove query string, get last 3 path segments)
   const urlParts = storedValue.split('?')[0]
   return urlParts.split('/').slice(-3).join('/')
@@ -52,6 +52,8 @@ export default defineEventHandler(async (event) => {
         documentFile: indicators.documentFile,
         createdAt: indicators.createdAt,
         updatedAt: indicators.updatedAt,
+        isActive: indicators.isActive,
+        entryFrequency: indicators.entryFrequency,
         categoryName: indicatorCategories.name,
       })
       .from(indicators)

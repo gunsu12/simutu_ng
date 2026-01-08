@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Plus, Search, Edit, Trash2, Eye, ClipboardCheck, Calendar, AlertCircle } from 'lucide-vue-next'
+import { Plus, Search, Edit, Trash2, Eye, ClipboardCheck, Calendar, AlertCircle, Filter } from 'lucide-vue-next'
 import RichTextEditor from '~/components/RichTextEditor.vue'
 import { Printer } from 'lucide-vue-next'
 import { sanitizeHtml } from '~/utils/sanitize'
@@ -130,6 +130,53 @@ const formData = ref({
   action: '',
 })
 
+// Filter state
+const now = new Date()
+const lastWeek = new Date(now)
+lastWeek.setDate(now.getDate() - 6)
+
+const filterStartDate = ref(lastWeek.toISOString().split('T')[0])
+const filterEndDate = ref(now.toISOString().split('T')[0])
+const filterUnitId = ref('')
+const unitNameSelect = ref('')
+const unitSearchQuery = ref('')
+const units = ref<any[]>([])
+const unitLoading = ref(false)
+const unitTotalPages = ref(1)
+const unitCurrentPage = ref(1)
+const unitInput = ref<HTMLInputElement | null>(null)
+
+// New filter state
+const filterSiteId = ref('')
+const filterDivisionId = ref('')
+const sites = ref<any[]>([])
+const divisions = ref<any[]>([])
+
+// Get user info from session
+const { user } = useAuth()
+const unitId = computed(() => (user.value as any)?.unitId || '')
+const isAdmin = computed(() => user.value?.role === 'admin')
+const isAuditor = computed(() => user.value?.role === 'auditor')
+const isManager = computed(() => user.value?.role === 'manager')
+
+// Auto-set filters based on role
+watchEffect(() => {
+  if (isAuditor.value && user.value?.siteId && !filterSiteId.value) {
+    filterSiteId.value = user.value.siteId
+  }
+  
+  if (!isAdmin.value && !isAuditor.value && !isManager.value && unitId.value && !filterUnitId.value) {
+    filterUnitId.value = unitId.value
+  }
+})
+
+// Auto-set filterUnitId for non-admins
+watchEffect(() => {
+  if (!isAdmin.value && unitId.value && !filterUnitId.value) {
+    filterUnitId.value = unitId.value
+  }
+})
+
 const submitting = ref(false)
 
 // Computed
@@ -145,36 +192,164 @@ const filteredPdcaList = computed(() => {
 })
 
 const filteredNeedsPdcaList = computed(() => {
-  // Filter out items that already have PDCA
-  return needsPdcaList.value.filter(item => !item.hasPdca)
+  let list = needsPdcaList.value.filter(item => !item.hasPdca)
+  
+  if (searchQuery.value) {
+    const query = searchQuery.value.toLowerCase()
+    list = list.filter(item => 
+      item.indicator.code.toLowerCase().includes(query) ||
+      item.indicator.judul.toLowerCase().includes(query) ||
+      item.unit?.name.toLowerCase().includes(query)
+    )
+  }
+  
+  return list
 })
 
 // Methods
 async function fetchPdcaList() {
   loading.value = true
   try {
-    const response = await $fetch<{ success: boolean; data: PdcaEntry[] }>('/api/indicator-pdcas')
+    const params = new URLSearchParams()
+    if (filterStartDate.value) params.append('startDate', filterStartDate.value)
+    if (filterEndDate.value) params.append('endDate', filterEndDate.value)
+    if (filterUnitId.value) params.append('unitId', filterUnitId.value)
+    if (filterSiteId.value) params.append('siteId', filterSiteId.value)
+    if (filterDivisionId.value) params.append('divisionId', filterDivisionId.value)
+
+    const response = await $fetch<{ success: boolean; data: PdcaEntry[] }>(`/api/indicator-pdcas?${params.toString()}`)
     if (response.success) {
       pdcaList.value = response.data
     }
   } catch (error: any) {
     console.error('Failed to fetch PDCA list:', error)
-    showNotification(error.data?.message || 'Failed to fetch PDCA list', 'error')
+    showNotification(error.data?.message || 'Gagal mengambil daftar PDCA', 'error')
   } finally {
     loading.value = false
   }
 }
 
+async function fetchUnits(search = '', page = 1) {
+  unitLoading.value = true
+  try {
+    const query: any = { search, page, limit: 10 }
+    if (filterSiteId.value) query.siteId = filterSiteId.value
+    if (filterDivisionId.value) query.divisionId = filterDivisionId.value
+    
+    const response = await $fetch<{ 
+      success: boolean; 
+      data: any[];
+      meta: { total: number; totalPages: number; page: number; limit: number }
+    }>('/api/units', { query })
+    
+    if (response.success) {
+      units.value = response.data
+      unitTotalPages.value = response.meta.totalPages
+      unitCurrentPage.value = response.meta.page
+    }
+  } catch (err: any) {
+    console.error('Failed to fetch units:', err)
+  } finally {
+    unitLoading.value = false
+  }
+}
+
+async function fetchSites() {
+  try {
+    const response = await $fetch<{ success: boolean; data: any[] }>('/api/sites')
+    if (response.success) sites.value = response.data
+  } catch (err) {
+    console.error('Failed to fetch sites:', err)
+  }
+}
+
+async function fetchDivisions(siteId?: string) {
+  try {
+    const query: any = {}
+    if (siteId) query.siteId = siteId
+    const response = await $fetch<{ success: boolean; data: any[] }>('/api/divisions', { query })
+    if (response.success) divisions.value = response.data
+  } catch (err) {
+    console.error('Failed to fetch divisions:', err)
+  }
+}
+
+let unitSearchTimeout: ReturnType<typeof setTimeout> | null = null
+const handleUnitSearch = () => {
+  if (unitSearchTimeout) clearTimeout(unitSearchTimeout)
+  unitSearchTimeout = setTimeout(() => {
+    fetchUnits(unitSearchQuery.value)
+  }, 500)
+}
+
+function resetFilters() {
+  const now = new Date()
+  const lastWeek = new Date(now)
+  lastWeek.setDate(now.getDate() - 6)
+
+  filterStartDate.value = lastWeek.toISOString().split('T')[0]
+  filterEndDate.value = now.toISOString().split('T')[0]
+  if (isAdmin.value) {
+    filterSiteId.value = ''
+    filterDivisionId.value = ''
+    filterUnitId.value = ''
+    unitNameSelect.value = ''
+  } else if (isAuditor.value) {
+    filterSiteId.value = user.value?.siteId || ''
+    filterDivisionId.value = ''
+    filterUnitId.value = ''
+    unitNameSelect.value = ''
+  } else if (isManager.value) {
+    // Manager might manage specific units, reset clears selection but list is filtered by API
+    filterUnitId.value = ''
+    unitNameSelect.value = ''
+  } else {
+    filterUnitId.value = unitId.value
+  }
+  
+  // Refresh active tab
+  if (activeTab.value === 'list') {
+    fetchPdcaList()
+  } else {
+    fetchNeedsPdca()
+  }
+}
+
+// Watch filters to trigger fetch
+watch([filterStartDate, filterEndDate, filterUnitId, filterSiteId, filterDivisionId], () => {
+  if (activeTab.value === 'list') {
+    fetchPdcaList()
+  } else {
+    fetchNeedsPdca()
+  }
+})
+
+// Watch active tab to refresh data if needed
+watch(activeTab, (newTab) => {
+  if (newTab === 'list') {
+    fetchPdcaList()
+  } else {
+    fetchNeedsPdca()
+  }
+})
+
 async function fetchNeedsPdca() {
   loadingNeedsPdca.value = true
   try {
-    const response = await $fetch<{ success: boolean; data: IndicatorEntryItem[] }>('/api/indicator-pdcas/needs-pdca')
+    const params = new URLSearchParams()
+    if (filterStartDate.value) params.append('startDate', filterStartDate.value)
+    if (filterEndDate.value) params.append('endDate', filterEndDate.value)
+    if (filterUnitId.value) params.append('unitId', filterUnitId.value)
+    if (filterSiteId.value) params.append('siteId', filterSiteId.value)
+    if (filterDivisionId.value) params.append('divisionId', filterDivisionId.value)
+
+    const response = await $fetch<{ success: boolean; data: IndicatorEntryItem[] }>(`/api/indicator-pdcas/needs-pdca?${params.toString()}`)
     if (response.success) {
       needsPdcaList.value = response.data
     }
   } catch (error: any) {
     console.error('Failed to fetch needs PDCA list:', error)
-    showNotification(error.data?.message || 'Failed to fetch indicators needing PDCA', 'error')
+    showNotification(error.data?.message || 'Gagal mengambil indikator yang membutuhkan PDCA', 'error')
   } finally {
     loadingNeedsPdca.value = false
   }
@@ -299,7 +474,7 @@ async function openCalculatedIndicatorsModal(pdca: PdcaEntry) {
   try {
     // Fetch the full entry data with all items using the entry ID
     if (!pdca.entry?.id) {
-      showNotification('Entry ID not found', 'error')
+      showNotification('ID Entry tidak ditemukan', 'error')
       return
     }
     
@@ -310,7 +485,7 @@ async function openCalculatedIndicatorsModal(pdca: PdcaEntry) {
     }
   } catch (error: any) {
     console.error('Failed to fetch entry:', error)
-    showNotification(error.data?.message || 'Failed to fetch entry details', 'error')
+    showNotification(error.data?.message || 'Gagal mengambil detail entri', 'error')
   }
 }
 
@@ -456,7 +631,7 @@ function printPdca() {
           <div class="print-page">
             <div class="print-header">
               <div class="print-logo">BROS<br/>HOSPITAL</div>
-              <div class="print-header-title">Cotak Laporan</div>
+              <div class="print-header-title">Cetak Laporan</div>
             </div>
             
             <div class="print-title">
@@ -542,9 +717,40 @@ function printPdca() {
 }
 
 // Initial load
-onMounted(() => {
-  fetchPdcaList()
-  fetchNeedsPdca()
+onMounted(async () => {
+  if (isAdmin.value) {
+    await fetchSites()
+    await fetchDivisions()
+  } else if (isAuditor.value) {
+    if (user.value?.siteId) {
+        await fetchDivisions(user.value.siteId)
+    }
+  }
+  
+  if (activeTab.value === 'list') {
+    fetchPdcaList()
+  } else {
+    fetchNeedsPdca()
+  }
+})
+
+// Watchers for cascading dropdowns
+watch(filterSiteId, (newSiteId) => {
+  filterDivisionId.value = ''
+  filterUnitId.value = ''
+  unitNameSelect.value = ''
+  if (newSiteId) {
+    fetchDivisions(newSiteId)
+  } else {
+    divisions.value = []
+    if (isAdmin.value) fetchDivisions() // load all if no site selected? or clear?
+  }
+})
+
+watch(filterDivisionId, () => {
+  filterUnitId.value = ''
+  unitNameSelect.value = ''
+  fetchUnits() // Refetch units based on new division
 })
 </script>
 
@@ -598,24 +804,176 @@ onMounted(() => {
       </button>
     </div>
 
-    <!-- PDCA List Tab -->
-    <div v-if="activeTab === 'list'" class="space-y-4">
-      <!-- Search -->
-      <div class="flex gap-4">
-        <div class="form-control flex-1 max-w-md">
-          <div class="input-group">
-            <span class="bg-base-200">
-              <Search class="w-4 h-4" />
-            </span>
-            <input 
-              v-model="searchQuery"
-              type="text" 
-              placeholder="Cari PDCA..." 
-              class="input input-bordered w-full"
+    <!-- Shared Filters -->
+    <div class="card bg-base-100 border border-base-300 shadow-sm">
+      <div class="card-body p-4">
+        <div class="flex items-center gap-2 mb-3">
+          <Filter class="w-4 h-4" />
+          <h3 class="font-semibold text-base-content">Filter</h3>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-3">
+          <!-- Search -->
+          <div class="form-control lg:col-span-2">
+            <label class="label">
+              <span class="label-text text-sm">Cari</span>
+            </label>
+            <div class="relative">
+              <Search class="absolute left-3 top-1/2 transform -translate-y-1/2 text-base-content/40 w-4 h-4" />
+              <input
+                v-model="searchQuery"
+                type="text"
+                placeholder="Cari judul, indikator, unit..."
+                class="input input-bordered input-sm w-full pl-10"
+              />
+            </div>
+          </div>
+
+          <!-- Start Date -->
+          <div class="form-control">
+            <label class="label">
+              <span class="label-text text-sm">Tanggal Mulai</span>
+            </label>
+            <input
+              v-model="filterStartDate"
+              type="date"
+              class="input input-bordered input-sm"
             />
+          </div>
+
+          <!-- End Date -->
+          <div class="form-control">
+            <label class="label">
+              <span class="label-text text-sm">Tanggal Selesai</span>
+            </label>
+            <input
+              v-model="filterEndDate"
+              type="date"
+              class="input input-bordered input-sm"
+            />
+          </div>
+
+          <!-- Reset Button -->
+          <div class="form-control lg:col-span-2 flex justify-end">
+            <label class="label">
+              <span class="label-text text-sm invisible">Aksi</span>
+            </label>
+            <button
+              @click="resetFilters"
+              class="btn btn-outline btn-sm w-full md:w-auto"
+            >
+              Hapus Filter
+            </button>
+          </div>
+
+          <!-- Site Filter (Admin only) -->
+          <div class="form-control lg:col-span-2" v-if="isAdmin">
+            <label class="label">
+              <span class="label-text text-sm">Filter Site</span>
+            </label>
+            <select 
+              v-model="filterSiteId" 
+              class="select select-bordered select-sm w-full"
+            >
+              <option value="">Semua Site</option>
+              <option v-for="site in sites" :key="site.id" :value="site.id">
+                {{ site.name }}
+              </option>
+            </select>
+          </div>
+
+          <!-- Division Filter (Admin & Auditor) -->
+          <div 
+            class="form-control" 
+            :class="isAdmin ? 'lg:col-span-2' : 'lg:col-span-3'" 
+            v-if="isAdmin || isAuditor"
+          >
+            <label class="label">
+              <span class="label-text text-sm">Filter Divisi</span>
+            </label>
+            <select 
+              v-model="filterDivisionId" 
+              class="select select-bordered select-sm w-full"
+            >
+              <option value="">{{ isAdmin ? 'Semua Divisi' : 'Semua Divisi di Site Ini' }}</option>
+              <option v-for="division in divisions" :key="division.id" :value="division.id">
+                {{ division.name }}
+              </option>
+            </select>
+          </div>
+          
+          <!-- Unit Filter (Admin, Auditor, Manager) -->
+          <div 
+            class="form-control" 
+            :class="isAdmin ? 'lg:col-span-2' : (isAuditor ? 'lg:col-span-3' : 'lg:col-span-6')" 
+            v-if="isAdmin || isAuditor || isManager"
+          >
+            <label class="label">
+              <span class="label-text text-sm font-medium">Filter Unit</span>
+            </label>
+            <div class="dropdown w-full">
+              <div class="relative">
+                <input
+                  ref="unitInput"
+                  v-model="unitNameSelect"
+                  type="text"
+                  placeholder="Cari Unit..."
+                  class="input input-bordered input-sm w-full"
+                  @input="(e) => { 
+                    unitSearchQuery = (e.target as HTMLInputElement).value;
+                    handleUnitSearch();
+                  }"
+                  @focus="() => { if (!unitSearchQuery) fetchUnits() }"
+                />
+                <div v-if="unitLoading" class="absolute right-8 top-1/2 -translate-y-1/2">
+                  <span class="loading loading-spinner loading-xs"></span>
+                </div>
+              </div>
+              
+              <ul class="dropdown-content z-[20] menu p-2 shadow bg-base-100 rounded-box w-full max-h-60 overflow-y-auto mt-1 border border-base-content/10">
+                <li v-if="units.length === 0 && !unitLoading">
+                  <a class="text-base-content/50">Unit tidak ditemukan</a>
+                </li>
+                <li v-for="unit in units" :key="unit.id">
+                  <button 
+                    type="button"
+                    @click="() => { 
+                      filterUnitId = unit.id; 
+                      unitNameSelect = unit.name;
+                      (unitInput as any)?.blur();
+                      // Watcher will trigger fetch
+                    }"
+                    :class="{ 'active': filterUnitId === unit.id }"
+                  >
+                    <div class="flex flex-col items-start text-left">
+                      <span class="font-medium text-xs">{{ unit.name }}</span>
+                      <span class="text-[10px] opacity-50">{{ (unit as any).unitCode }}</span>
+                    </div>
+                  </button>
+                </li>
+                <li v-if="unitTotalPages > 1" class="border-t border-base-content/10 mt-2 pt-2">
+                  <div class="flex items-center justify-between px-2 py-1">
+                    <button 
+                      class="btn btn-xs btn-ghost" 
+                      :disabled="unitCurrentPage === 1"
+                      @click.stop="() => { unitCurrentPage--; fetchUnits(unitSearchQuery, unitCurrentPage) }"
+                    >«</button>
+                    <span class="text-[10px] font-medium">Hal {{ unitCurrentPage }} / {{ unitTotalPages }}</span>
+                    <button 
+                      class="btn btn-xs btn-ghost" 
+                      :disabled="unitCurrentPage === unitTotalPages"
+                      @click.stop="() => { unitCurrentPage++; fetchUnits(unitSearchQuery, unitCurrentPage) }"
+                    >»</button>
+                  </div>
+                </li>
+              </ul>
+            </div>
           </div>
         </div>
       </div>
+    </div>
+
+    <!-- PDCA List Tab -->
+    <div v-if="activeTab === 'list'" class="space-y-4">
 
       <!-- Loading -->
       <div v-if="loading" class="flex justify-center py-12">
@@ -623,11 +981,18 @@ onMounted(() => {
       </div>
 
       <!-- Empty State -->
-      <div v-else-if="filteredPdcaList.length === 0" class="card bg-base-100 border border-base-300">
+      <div v-else-if="filteredPdcaList.length === 0" class="card bg-base-100 border border-base-300 shadow-sm">
         <div class="card-body items-center text-center py-12">
-          <ClipboardCheck class="w-16 h-16 text-base-content/30 mb-4" />
-          <h3 class="text-lg font-semibold">Belum ada data PDCA</h3>
-          <p class="text-base-content/60">Klik tab "Buat PDCA Baru" untuk menambahkan laporan PDCA.</p>
+          <ClipboardCheck class="w-16 h-16 text-base-content/20 mb-4" />
+          <p class="text-base-content/60">
+            {{ (searchQuery || filterUnitId) ? 'Data PDCA tidak ditemukan' : 'Belum ada data PDCA' }}
+          </p>
+          <button v-if="searchQuery || filterUnitId" @click="resetFilters" class="btn btn-ghost btn-sm mt-2">
+            Hapus Filter
+          </button>
+          <p v-else class="text-sm text-base-content/40 mt-1">
+            Klik tab "Buat PDCA Baru" untuk menambahkan laporan PDCA.
+          </p>
         </div>
       </div>
 
@@ -765,7 +1130,7 @@ onMounted(() => {
         <dialog :class="{ 'modal modal-open': modalOpen, 'modal': !modalOpen }">
         <div class="modal-box max-w-6xl h-screen max-h-[95vh]">
             <h3 class="font-bold text-lg mb-4">
-            {{ modalMode === 'create' ? 'Buat PDCA Baru' : modalMode === 'edit' ? 'Edit PDCA' : 'Detail PDCA' }}
+            {{ modalMode === 'create' ? 'Buat PDCA Baru' : modalMode === 'edit' ? 'Ubah PDCA' : 'Detail PDCA' }}
             </h3>
             
             <!-- View Mode -->
@@ -784,7 +1149,7 @@ onMounted(() => {
 
             <div class="grid grid-cols-2 gap-4 border-b pb-4">
                 <div>
-                <label class="label"><span class="label-text font-medium text-xs uppercase">Entry Code</span></label>
+                <label class="label"><span class="label-text font-medium text-xs uppercase">Kode Entry</span></label>
                 <p class="font-semibold">{{ selectedPdca.entry?.entryCode || '-' }}</p>
                 </div>
                 <div>
@@ -847,7 +1212,7 @@ onMounted(() => {
                 <button class="btn" @click="closeModal">Tutup</button>
                 <button class="btn btn-outline gap-2" @click="printPdca">
                   <Printer class="w-4 h-4" />
-                  Print
+                  Cetak
                 </button>
                 <button class="btn btn-primary" @click="openEditModal(selectedPdca)">Edit</button>
             </div>
@@ -942,7 +1307,7 @@ onMounted(() => {
             </form>
         </div>
         <form method="dialog" class="modal-backdrop" @click="closeModal">
-            <button>close</button>
+            <button>tutup</button>
         </form>
         </dialog>
     </Teleport>

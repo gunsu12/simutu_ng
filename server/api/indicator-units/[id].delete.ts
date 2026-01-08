@@ -10,7 +10,7 @@ export default defineEventHandler(async (event) => {
     if (!id) {
       return {
         success: false,
-        message: 'ID is required',
+        message: 'ID wajib diisi',
       }
     }
 
@@ -19,20 +19,20 @@ export default defineEventHandler(async (event) => {
     await logActivity({
       event,
       action: 'DELETE',
-      module: 'indicator-units',
+      module: 'indicators',
       description: `Menghapus unit dari indikator`,
       details: { indicatorUnitId: id }
     })
 
     return {
       success: true,
-      message: 'Unit removed from indicator successfully',
+      message: 'Pendaftaran unit berhasil dihapus dari indikator',
     }
   } catch (error: any) {
     console.error('Delete indicator unit error:', error)
     return {
       success: false,
-      message: error.message || 'Failed to remove unit from indicator',
+      message: error.message || 'Gagal menghapus pendaftaran unit dari indikator',
     }
   }
 })

@@ -126,7 +126,7 @@ const handleUnitSearch = () => {
 // Fetch report data
 async function fetchReport() {
   if (!selectedUnitId.value || !selectedMonth.value) {
-    error.value = 'Please select a unit and month'
+    error.value = 'Silakan pilih unit dan bulan'
     return
   }
 
@@ -141,11 +141,11 @@ async function fetchReport() {
     if (response.success) {
       reportData.value = response.data
     } else {
-      error.value = response.message || 'Failed to load report data'
+      error.value = response.message || 'Gagal memuat data laporan'
     }
   } catch (err: any) {
     console.error('Failed to fetch report:', err)
-    error.value = err.data?.message || err.message || 'Failed to load report data'
+    error.value = err.data?.message || err.message || 'Gagal memuat data laporan'
   } finally {
     loading.value = false
   }
@@ -187,10 +187,10 @@ function formatCapaian(item: ReportItem) {
 // Get status display
 function getStatusDisplay(status: string) {
   switch (status) {
-    case 'proposed': return 'On Progress'
-    case 'checked': return 'On Progress'
-    case 'pending': return 'On Progress'
-    case 'finish': return 'Closed'
+    case 'proposed': return 'Dalam Proses'
+    case 'checked': return 'Dalam Proses'
+    case 'pending': return 'Dalam Proses'
+    case 'finish': return 'Selesai'
     default: return status
   }
 }
@@ -266,7 +266,7 @@ onMounted(async () => {
                 
                 <ul class="dropdown-content z-[20] menu p-2 shadow bg-base-100 rounded-box w-full max-h-60 overflow-y-auto mt-1 border border-base-content/10">
                   <li v-if="units.length === 0 && !loadingUnits">
-                    <a class="text-base-content/50">No units found</a>
+                    <a class="text-base-content/50">Unit tidak ditemukan</a>
                   </li>
                   <li v-for="unit in units" :key="unit.id">
                     <button 
@@ -292,7 +292,7 @@ onMounted(async () => {
                         :disabled="unitCurrentPage === 1 || loadingUnits"
                         @click.stop="fetchUnits(unitSearchQuery, unitCurrentPage - 1)"
                       >«</button>
-                      <span class="text-[10px]">Page {{ unitCurrentPage }} of {{ unitTotalPages }}</span>
+                      <span class="text-[10px]">Halaman {{ unitCurrentPage }} dari {{ unitTotalPages }}</span>
                       <button 
                         type="button"
                         class="btn btn-xs" 

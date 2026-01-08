@@ -62,12 +62,15 @@ const selectedSiteId = ref('')
 
 // Declare refs first
 const searchQuery = ref('')
+const filterSearch = ref('')
 const filterCategoryId = ref('')
 const showModal = ref(false)
 const showDetailModal = ref(false)
 const detailIndicatorId = ref('')
 const showUnitsModal = ref(false)
 const isEditing = ref(false)
+const currentPage = ref(1)
+const pageSize = ref(10)
 const currentIndicator = ref<Indicator | null>(null)
 const saving = ref(false)
 const errorMessage = ref('')
@@ -121,15 +124,31 @@ const sites = computed(() => sitesData.value?.data || [])
 const { data: indicatorsData, pending: loadingIndicators, error: indicatorsError, refresh: refreshIndicators } = useLazyFetch<{
   success: boolean
   data: Indicator[]
+  meta: { total: number; page: number; limit: number; totalPages: number }
 }>(() => {
   const params = new URLSearchParams()
+  params.append('page', currentPage.value.toString())
+  params.append('limit', pageSize.value.toString())
+  
+  if (filterSearch.value) {
+    params.append('search', filterSearch.value)
+  }
+  
+  if (filterCategoryId.value) {
+    params.append('categoryId', filterCategoryId.value)
+  }
+
   if (isAdmin.value && selectedSiteId.value) {
     params.append('siteId', selectedSiteId.value)
   }
   return `/api/indicators?${params.toString()}`
 }, {
-  default: () => ({ success: false, data: [] }),
-  watch: [selectedSiteId]
+  default: () => ({ 
+    success: false, 
+    data: [], 
+    meta: { total: 0, page: 1, limit: 10, totalPages: 1 } 
+  }),
+  watch: [selectedSiteId, currentPage, pageSize, filterSearch, filterCategoryId]
 })
 
 const { data: categoriesData, pending: loadingCategories } = useLazyFetch<{
@@ -148,6 +167,7 @@ const { data: categoriesData, pending: loadingCategories } = useLazyFetch<{
 })
 
 const indicators = computed(() => indicatorsData.value?.data || [])
+const meta = computed(() => indicatorsData.value?.meta || { total: 0, page: 1, limit: 10, totalPages: 1 })
 const categories = computed(() => categoriesData.value?.data || [])
 const loading = computed(() => loadingIndicators.value || loadingCategories.value)
 
@@ -181,25 +201,18 @@ watch(() => form.value.siteId, () => {
   }
 })
 
-const filteredIndicators = computed(() => {
-  let result = indicators.value
-  
-  // Filter by category
-  if (filterCategoryId.value) {
-    result = result.filter(ind => ind.indicatorCategoryId === filterCategoryId.value)
-  }
-  
-  // Filter by search query
-  if (searchQuery.value) {
-    const query = searchQuery.value.toLowerCase()
-    result = result.filter(ind => 
-      ind.code.toLowerCase().includes(query) ||
-      ind.judul.toLowerCase().includes(query) ||
-      ind.categoryName?.toLowerCase().includes(query)
-    )
-  }
-  
-  return result
+// Pagination and filters trigger first page
+watch([filterSearch, filterCategoryId, selectedSiteId], () => {
+  currentPage.value = 1
+})
+
+// Debounce search
+let searchTimeout: ReturnType<typeof setTimeout> | null = null
+watch(searchQuery, (newVal) => {
+  if (searchTimeout) clearTimeout(searchTimeout)
+  searchTimeout = setTimeout(() => {
+    filterSearch.value = newVal
+  }, 500)
 })
 
 const openCreateModal = () => {
@@ -269,7 +282,7 @@ const handleFileSelect = (event: Event) => {
 
 const uploadDocument = async () => {
   if (!selectedFile.value) {
-    errorMessage.value = 'Please select a file first'
+    errorMessage.value = 'Silakan pilih file terlebih dahulu'
     return
   }
 
@@ -398,35 +411,37 @@ const handleUnitSearch = () => {
   }, 500)
 }
 
-const assignUnitToIndicator = async () => {
-  if (!selectedUnitId.value || !selectedIndicatorForUnits.value) return
+const assignUnitToIndicator = async (unitId: string) => {
+  if (!unitId || !selectedIndicatorForUnits.value) return
 
   try {
     const response = await $fetch<{ success: boolean; message?: string }>('/api/indicator-units', {
       method: 'POST',
       body: {
         indicatorId: selectedIndicatorForUnits.value.id,
-        unitId: selectedUnitId.value
+        unitId: unitId
       }
     })
 
     if (response.success) {
       await loadIndicatorUnits(selectedIndicatorForUnits.value.id)
-      selectedUnitId.value = ''
     } else {
-      alert(response.message || 'Failed to assign unit')
+      alert(response.message || 'Gagal mendaftarkan unit')
     }
   } catch (error: any) {
     console.error('Error assigning unit:', error)
-    alert(error.data?.message || 'Failed to assign unit')
+    alert(error.data?.message || 'Gagal mendaftarkan unit')
   }
 }
 
-const removeUnitFromIndicator = async (indicatorUnitId: string) => {
-  if (!confirm('Are you sure you want to remove this unit assignment?')) return
+const removeUnitFromIndicator = async (unitId: string) => {
+  const mapping = assignedUnits.value.find(au => au.unitId === unitId)
+  if (!mapping) return
+  
+  if (!confirm(`Apakah Anda yakin ingin menghapus pendaftaran unit ${mapping.unitName}?`)) return
 
   try {
-    const response = await $fetch<{ success: boolean }>(`/api/indicator-units/${indicatorUnitId}`, {
+    const response = await $fetch<{ success: boolean }>(`/api/indicator-units/${mapping.id}`, {
       method: 'DELETE'
     })
 
@@ -439,14 +454,23 @@ const removeUnitFromIndicator = async (indicatorUnitId: string) => {
   }
 }
 
+const toggleUnitAssignment = async (unit: Unit) => {
+  const isAssigned = assignedUnits.value.some(au => au.unitId === unit.id)
+  if (isAssigned) {
+    await removeUnitFromIndicator(unit.id)
+  } else {
+    await assignUnitToIndicator(unit.id)
+  }
+}
+
 const saveIndicator = async () => {
   if (!form.value.indicatorCategoryId || !form.value.code.trim() || !form.value.judul.trim()) {
-    errorMessage.value = 'Category, Code, and Judul are required'
+    errorMessage.value = 'Kategori, Kode, dan Judul wajib diisi'
     return
   }
 
   if (isAdmin.value && !form.value.siteId && !isEditing.value) {
-    errorMessage.value = 'Site is required'
+    errorMessage.value = 'Site wajib dipilih'
     return
   }
 
@@ -492,7 +516,7 @@ const saveIndicator = async () => {
 }
 
 const deleteIndicator = async (id: string) => {
-  if (!confirm('Are you sure you want to delete this indicator?')) return
+  if (!confirm('Apakah Anda yakin ingin menghapus indikator ini?')) return
   
   try {
     const response = await $fetch(`/api/indicators/${id}`, {
@@ -503,7 +527,7 @@ const deleteIndicator = async (id: string) => {
     }
   } catch (err: any) {
     console.error('Error deleting indicator:', err)
-    alert(err.data?.message || 'Failed to delete indicator')
+    alert(err.data?.message || 'Gagal menghapus indikator')
   }
 }
 
@@ -520,11 +544,11 @@ const toggleStatus = async (indicator: Indicator) => {
     if (response.success) {
       await refreshIndicators()
     } else {
-      alert(response.message || 'Failed to update status')
+      alert(response.message || 'Gagal memperbarui status')
     }
   } catch (error: any) {
     console.error('Error toggling status:', error)
-    alert(error.data?.message || 'Failed to update status')
+    alert(error.data?.message || 'Gagal memperbarui status')
   }
 }
 
@@ -541,13 +565,13 @@ const formatTarget = (indicator: Indicator) => {
     <!-- Header -->
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
       <div>
-        <h1 class="text-2xl font-bold text-base-content">Indicator Mutu</h1>
-        <p class="text-base-content/60 mt-1">Manage quality indicators</p>
+        <h1 class="text-2xl font-bold text-base-content">Indikator Mutu</h1>
+        <p class="text-base-content/60 mt-1">Kelola indikator mutu</p>
       </div>
       <div class="flex gap-2">
         <button @click="refreshIndicators()" class="btn btn-ghost btn-sm gap-2" :disabled="loading">
           <RefreshCw class="w-4 h-4" :class="{ 'animate-spin': loading }" />
-          Refresh
+          Segarkan
         </button>
         <button type="button" @click="openCreateModal" class="btn btn-primary gap-2">
           <Plus class="w-4 h-4" />
@@ -558,8 +582,8 @@ const formatTarget = (indicator: Indicator) => {
 
     <!-- Error Alert -->
     <div v-if="indicatorsError" class="alert alert-error">
-      <span>{{ indicatorsError.message || 'Failed to load indicators' }}</span>
-      <button @click="refreshIndicators()" class="btn btn-sm">Retry</button>
+      <span>{{ indicatorsError.message || 'Gagal memuat indikator' }}</span>
+      <button @click="refreshIndicators()" class="btn btn-sm">Coba Lagi</button>
     </div>
 
     <!-- Filters -->
@@ -571,14 +595,13 @@ const formatTarget = (indicator: Indicator) => {
             <input
               v-model="searchQuery"
               type="text"
-              placeholder="Search indicators..."
+              placeholder="Cari indikator..."
               class="input input-sm input-bordered flex-1"
             />
           </div>
           <div class="flex items-center gap-2">
-            <Filter class="w-5 h-5 text-base-content/50" />
             <select v-model="filterCategoryId" class="select select-sm select-bordered flex-1">
-              <option value="">All Categories</option>
+              <option value="">Semua Kategori</option>
               <option v-for="cat in categories" :key="cat.id" :value="cat.id">
                 {{ cat.name }}
               </option>
@@ -603,14 +626,14 @@ const formatTarget = (indicator: Indicator) => {
           <span class="loading loading-spinner loading-lg"></span>
         </div>
 
-        <div v-else-if="filteredIndicators.length === 0" class="flex flex-col items-center justify-center p-12 text-center">
+        <div v-else-if="indicators.length === 0" class="flex flex-col items-center justify-center p-12 text-center">
           <FileText class="w-16 h-16 text-base-content/20 mb-4" />
           <p class="text-base-content/60">
-            {{ searchQuery || filterCategoryId ? 'No indicators found' : 'No indicators yet' }}
+            {{ searchQuery || filterCategoryId ? 'Indikator tidak ditemukan' : 'Belum ada indikator' }}
           </p>
           <button v-if="!searchQuery && !filterCategoryId" @click="openCreateModal" class="btn btn-primary btn-sm mt-4">
             <Plus class="w-4 h-4" />
-            Create First Indicator
+            Buat Indikator Pertama
           </button>
         </div>
 
@@ -618,39 +641,39 @@ const formatTarget = (indicator: Indicator) => {
           <table class="table table-zebra">
             <thead>
               <tr>
-                <th>Code</th>
+                <th>Kode</th>
                 <th>Judul</th>
-                <th>Category</th>
+                <th>Kategori</th>
                 <th>Target</th>
                 <th>Formula</th>
-                <th>Frequency</th>
+                <th>Frekuensi</th>
                 <th>Status</th>
-                <th class="text-right">Actions</th>
+                <th class="text-right">Aksi</th>
               </tr>
             </thead>
             <tbody>
-              <tr v-for="indicator in filteredIndicators" :key="indicator.id">
-                <td class="font-mono text-sm">{{ indicator.code }}</td>
+              <tr v-for="indicator in indicators" :key="indicator.id">
+                <td class="font-medium text-sm">{{ indicator.code }}</td>
                 <td class="font-medium max-w-xs truncate">{{ indicator.judul }}</td>
-                <td>
-                  <span class="badge badge-outline badge-sm">{{ indicator.categoryName }}</span>
+                <td class="font-medium text-sm">
+                  {{ indicator.categoryName }}
                 </td>
                 <td>{{ formatTarget(indicator) }}</td>
                 <td>{{ indicator.targetCalculationFormula || '-' }}</td>
                 <td>
-                  <span :class="['badge badge-sm', indicator.entryFrequency === 'daily' ? 'badge-info' : 'badge-secondary']">
-                    {{ indicator.entryFrequency === 'daily' ? 'Daily' : 'Monthly' }}
+                  <span :class="['badge badge-md font-medium px-3', indicator.entryFrequency === 'daily' ? 'badge-info' : 'badge-secondary']">
+                    {{ indicator.entryFrequency === 'daily' ? 'Harian' : 'Bulanan' }}
                   </span>
                 </td>
                 <td>
                   <button
                     @click="toggleStatus(indicator)"
                     :class="[
-                      'badge badge-sm cursor-pointer',
+                      'badge badge-md font-medium px-3 cursor-pointer',
                       indicator.isActive ? 'badge-success' : 'badge-error'
                     ]"
                   >
-                    {{ indicator.isActive ? 'Active' : 'Inactive' }}
+                    {{ indicator.isActive ? 'Aktif' : 'Tidak Aktif' }}
                   </button>
                 </td>
                 <td class="text-right">
@@ -658,28 +681,28 @@ const formatTarget = (indicator: Indicator) => {
                     <button
                       @click="openUnitsModal(indicator)"
                       class="btn btn-ghost btn-sm btn-square"
-                      title="Manage Units"
+                      title="Kelola Unit"
                     >
                       <Users class="w-4 h-4" />
                     </button>
                     <button
                       @click="openDetailModal(indicator)"
                       class="btn btn-ghost btn-sm btn-square"
-                      title="View Details"
+                      title="Lihat Detail"
                     >
                       <Eye class="w-4 h-4" />
                     </button>
                     <button
                       @click="openEditModal(indicator)"
                       class="btn btn-ghost btn-sm btn-square"
-                      title="Edit"
+                      title="Ubah"
                     >
                       <Edit class="w-4 h-4" />
                     </button>
                     <button
                       @click="deleteIndicator(indicator.id)"
                       class="btn btn-ghost btn-sm btn-square text-error"
-                      title="Delete"
+                      title="Hapus"
                     >
                       <Trash2 class="w-4 h-4" />
                     </button>
@@ -688,6 +711,43 @@ const formatTarget = (indicator: Indicator) => {
               </tr>
             </tbody>
           </table>
+
+          <!-- Pagination -->
+          <div class="px-4 py-3 border-t border-base-200 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div class="text-sm text-base-content/60">
+              Menampilkan {{ indicators.length > 0 ? (currentPage - 1) * pageSize + 1 : 0 }} 
+              sampai {{ Math.min(currentPage * pageSize, meta.total) }} 
+              dari {{ meta.total }} data
+            </div>
+            <div class="flex items-center gap-4">
+              <div class="flex items-center gap-2">
+                <span class="text-xs text-base-content/60">Data per halaman:</span>
+                <select v-model="pageSize" class="select select-bordered select-xs" @change="currentPage = 1">
+                  <option :value="10">10</option>
+                  <option :value="25">25</option>
+                  <option :value="50">50</option>
+                  <option :value="100">100</option>
+                </select>
+              </div>
+              <div class="join">
+                <button 
+                  type="button"
+                  class="btn btn-xs join-item" 
+                  :disabled="currentPage === 1 || loading"
+                  @click="currentPage--"
+                >«</button>
+                <button type="button" class="btn btn-xs join-item no-animation">
+                  Hal {{ currentPage }} / {{ meta.totalPages }}
+                </button>
+                <button 
+                  type="button"
+                  class="btn btn-xs join-item" 
+                  :disabled="currentPage === meta.totalPages || loading"
+                  @click="currentPage++"
+                >»</button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -698,7 +758,7 @@ const formatTarget = (indicator: Indicator) => {
         <div class="modal-box max-w-4xl max-h-[90vh] overflow-y-auto">
           <button type="button" class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" @click="closeModal">✕</button>
           <h3 class="font-bold text-lg mb-4">
-            {{ isEditing ? 'Edit Indikator' : 'Tambah Indikator' }}
+            {{ isEditing ? 'Ubah Indikator' : 'Tambah Indikator' }}
           </h3>
 
           <!-- Error Message -->
@@ -724,10 +784,10 @@ const formatTarget = (indicator: Indicator) => {
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div class="form-control">
                 <label class="label">
-                  <span class="label-text">Category <span class="text-error">*</span></span>
+                  <span class="label-text">Kategori <span class="text-error">*</span></span>
                 </label>
                 <select v-model="form.indicatorCategoryId" class="select select-bordered" required :disabled="saving">
-                  <option value="">Select category</option>
+                  <option value="">Pilih kategori</option>
                   <option v-for="cat in categories" :key="cat.id" :value="cat.id">
                     {{ cat.name }}
                   </option>
@@ -736,7 +796,7 @@ const formatTarget = (indicator: Indicator) => {
 
               <div class="form-control">
                 <label class="label">
-                  <span class="label-text">Code <span class="text-error">*</span></span>
+                  <span class="label-text">Kode <span class="text-error">*</span></span>
                 </label>
                 <input
                   v-model="form.code"
@@ -756,7 +816,7 @@ const formatTarget = (indicator: Indicator) => {
               <input
                 v-model="form.judul"
                 type="text"
-                placeholder="Indicator title"
+                placeholder="Judul indikator"
                 class="input input-bordered"
                 required
                 :disabled="saving"
@@ -770,7 +830,7 @@ const formatTarget = (indicator: Indicator) => {
               <input
                 v-model="form.dimensiMutu"
                 type="text"
-                placeholder="Quality dimension"
+                placeholder="Dimensi mutu"
                 class="input input-bordered"
                 :disabled="saving"
               />
@@ -782,7 +842,7 @@ const formatTarget = (indicator: Indicator) => {
               </label>
               <textarea
                 v-model="form.tujuan"
-                placeholder="Objective"
+                placeholder="Tujuan"
                 class="textarea textarea-bordered h-20"
                 :disabled="saving"
               ></textarea>
@@ -794,7 +854,7 @@ const formatTarget = (indicator: Indicator) => {
               </label>
               <textarea
                 v-model="form.definisiOperasional"
-                placeholder="Operational definition"
+                placeholder="Definisi operasional"
                 class="textarea textarea-bordered h-20"
                 :disabled="saving"
               ></textarea>
@@ -831,10 +891,10 @@ const formatTarget = (indicator: Indicator) => {
 
               <div class="form-control">
                 <label class="label">
-                  <span class="label-text">Calculation Formula</span>
+                  <span class="label-text">Formula Perhitungan</span>
                 </label>
                 <select v-model="form.targetCalculationFormula" class="select select-bordered" :disabled="saving">
-                  <option value="">Select formula</option>
+                  <option value="">Pilih formula</option>
                   <option value="N/D">N/D</option>
                   <option value="N-D">N-D</option>
                   <option value="(N/D)*100">(N/D)*100</option>
@@ -844,11 +904,11 @@ const formatTarget = (indicator: Indicator) => {
 
             <div class="form-control">
               <label class="label">
-                <span class="label-text">Formula Description</span>
+                <span class="label-text">Deskripsi Formula</span>
               </label>
               <textarea
                 v-model="form.formula"
-                placeholder="Formula description"
+                placeholder="Deskripsi formula"
                 class="textarea textarea-bordered h-20"
                 :disabled="saving"
               ></textarea>
@@ -871,33 +931,33 @@ const formatTarget = (indicator: Indicator) => {
 
               <div class="form-control">
                 <label class="label">
-                  <span class="label-text">Target Unit</span>
+                  <span class="label-text">Unit Target</span>
                 </label>
                 <select v-model="form.targetUnit" class="select select-bordered" :disabled="saving">
-                  <option value="">Select unit</option>
-                  <option value="percentage">Percentage (%)</option>
-                  <option value="day">Days</option>
+                  <option value="">Pilih unit</option>
+                  <option value="percentage">Persentase (%)</option>
+                  <option value="day">Hari</option>
                 </select>
               </div>
 
               <div class="form-control">
                 <label class="label">
-                  <span class="label-text">Target Comparison</span>
+                  <span class="label-text">Pembanding Target</span>
                 </label>
                 <select v-model="form.targetKeterangan" class="select select-bordered" :disabled="saving">
-                  <option value="">Select</option>
-                  <option value=">">&gt; (Greater than)</option>
-                  <option value="<">&lt; (Less than)</option>
-                  <option value="=">=  (Equal to)</option>
-                  <option value=">=">&gt;= (Greater or equal)</option>
-                  <option value="<=">&lt;= (Less or equal)</option>
+                  <option value="">Pilih</option>
+                  <option value=">">&gt; (Lebih dari)</option>
+                  <option value="<">&lt; (Kurang dari)</option>
+                  <option value="=">=  (Sama dengan)</option>
+                  <option value=">=">&gt;= (Lebih dari atau sama dengan)</option>
+                  <option value="<=">&lt;= (Kurang dari atau sama dengan)</option>
                 </select>
               </div>
               
 
             <div class="form-control">
               <label class="label">
-                <span class="label-text">Target Weight <span class="text-error">*</span></span>
+                <span class="label-text">Bobot Target <span class="text-error">*</span></span>
               </label>
               <input
                 v-model.number="form.targetWeight"
@@ -909,7 +969,7 @@ const formatTarget = (indicator: Indicator) => {
                 required
               />
               <label class="label">
-                <span class="label-text-alt">Relative weight for this indicator (numeric, default 0)</span>
+                <span class="label-text-alt">Bobot relatif untuk indikator ini (numerik, default 0)</span>
               </label>
             </div>
             </div>
@@ -922,13 +982,13 @@ const formatTarget = (indicator: Indicator) => {
                   class="checkbox checkbox-primary"
                   :disabled="saving"
                 />
-                <span class="label-text">Target is Zero</span>
+                <span class="label-text">Target adalah Nol</span>
               </label>
             </div>
 
             <div class="form-control">
               <label class="label">
-                <span class="label-text">Document File</span>
+                <span class="label-text">File Dokumen</span>
               </label>
               
               <!-- Show current file if exists -->
@@ -936,7 +996,7 @@ const formatTarget = (indicator: Indicator) => {
                 <div class="flex items-center gap-2">
                   <FileText class="w-5 h-5 text-primary" />
                   <a :href="form.documentFile" target="_blank" class="link link-primary text-sm">
-                    View current document
+                    Lihat dokumen saat ini
                   </a>
                 </div>
                 <button
@@ -965,35 +1025,35 @@ const formatTarget = (indicator: Indicator) => {
                   :disabled="!selectedFile || saving || uploadingFile"
                 >
                   <Upload class="w-4 h-4" />
-                  {{ uploadingFile ? 'Uploading...' : 'Upload' }}
+                  {{ uploadingFile ? 'Mengunggah...' : 'Unggah' }}
                 </button>
               </div>
 
               <!-- Upload progress -->
               <div v-if="uploadingFile" class="mt-2">
                 <div class="flex items-center justify-between text-sm mb-1">
-                  <span>Uploading...</span>
+                  <span>Mengunggah...</span>
                   <span>{{ uploadProgress }}%</span>
                 </div>
                 <progress class="progress progress-primary w-full" :value="uploadProgress" max="100"></progress>
               </div>
 
               <label class="label">
-                <span class="label-text-alt">Upload PDF, DOC, DOCX, XLS, or XLSX files</span>
+                <span class="label-text-alt">Unggah file PDF, DOC, DOCX, XLS, atau XLSX</span>
               </label>
             </div>
 
             <!-- Entry Frequency -->
             <div class="form-control">
               <label class="label">
-                <span class="label-text">Entry Frequency <span class="text-error">*</span></span>
+                <span class="label-text">Frekuensi Input <span class="text-error">*</span></span>
               </label>
               <select v-model="form.entryFrequency" class="select select-bordered" required>
-                <option value="monthly">Monthly</option>
-                <option value="daily">Daily</option>
+                <option value="monthly">Bulanan</option>
+                <option value="daily">Harian</option>
               </select>
               <label class="label">
-                <span class="label-text-alt">How often this indicator data will be entered</span>
+                <span class="label-text-alt">Seberapa sering data indikator ini akan diinput</span>
               </label>
             </div>
 
@@ -1001,13 +1061,13 @@ const formatTarget = (indicator: Indicator) => {
               <button type="button" @click="closeModal" class="btn" :disabled="saving">Batal</button>
               <button type="submit" class="btn btn-primary" :disabled="saving">
                 <span v-if="saving" class="loading loading-spinner loading-sm"></span>
-                <span v-else>{{ isEditing ? 'Update' : 'Simpan' }}</span>
+                <span v-else>{{ isEditing ? 'Perbarui' : 'Simpan' }}</span>
               </button>
             </div>
           </form>
         </div>
         <form method="dialog" class="modal-backdrop">
-          <button type="button" @click="closeModal">close</button>
+          <button type="button" @click="closeModal">tutup</button>
         </form>
       </dialog>
     </Teleport>
@@ -1018,121 +1078,85 @@ const formatTarget = (indicator: Indicator) => {
         <div class="modal-box max-w-2xl">
           <button type="button" class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" @click="closeUnitsModal">✕</button>
           <h3 class="font-bold text-lg mb-4">
-            Manage Units for: {{ selectedIndicatorForUnits?.judul }}
+            Kelola Unit untuk: {{ selectedIndicatorForUnits?.judul }}
           </h3>
 
-          <!-- Assigned Units List -->
-          <div class="mb-6">
-            <h4 class="font-semibold mb-3">Assigned Units</h4>
-            <div v-if="loadingUnits" class="flex justify-center py-4">
-              <span class="loading loading-spinner loading-md"></span>
-            </div>
-            <div v-else-if="assignedUnits.length === 0" class="text-center py-4 text-base-content/60">
-              No units assigned yet
-            </div>
-            <div v-else class="space-y-2">
-              <div
-                v-for="unit in assignedUnits"
-                :key="unit.id"
-                class="flex items-center justify-between p-3 bg-base-200 rounded-lg"
-              >
-                <div>
-                  <p class="font-medium">{{ unit.unitName }}</p>
-                  <p class="text-sm text-base-content/60">{{ unit.unitCode }}</p>
-                </div>
-                <button
-                  @click="removeUnitFromIndicator(unit.id)"
-                  class="btn btn-ghost btn-sm btn-circle text-error"
-                >
-                  <Trash2 class="w-4 h-4" />
-                </button>
+          <div class="space-y-4">
+            <!-- Search Input -->
+            <div class="relative">
+              <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-base-content/40" />
+              <input
+                v-model="unitSearchQuery"
+                type="text"
+                placeholder="Cari unit..."
+                class="input input-bordered w-full pl-10"
+                @input="handleUnitSearch"
+              />
+              <div v-if="unitLoading" class="absolute right-3 top-1/2 -translate-y-1/2">
+                <span class="loading loading-spinner loading-xs"></span>
               </div>
             </div>
-          </div>
 
-          <!-- Add New Unit -->
-          <div class="divider">Add Unit</div>
-          <div class="flex flex-col gap-2">
-            <div class="dropdown w-full">
-              <div class="relative">
-                <input
-                  ref="unitInput"
-                  v-model="unitSearchQuery"
-                  type="text"
-                  placeholder="Search unit to assign..."
-                  class="input input-bordered w-full"
-                  @input="handleUnitSearch"
-                  @focus="() => { if (!unitSearchQuery) loadAvailableUnits() }"
-                />
-                <div v-if="unitLoading" class="absolute right-3 top-1/2 -translate-y-1/2">
-                  <span class="loading loading-spinner loading-xs"></span>
-                </div>
-              </div>
-              
-              <ul class="dropdown-content z-[2] menu p-2 shadow bg-base-100 rounded-box w-full max-h-60 overflow-y-auto mt-1 border border-base-content/10">
-                <li v-if="availableUnits.filter(u => !assignedUnits.some(au => au.unitId === u.id)).length === 0 && !unitLoading">
-                  <a class="text-base-content/50">No available units found</a>
-                </li>
-                <li v-for="unit in availableUnits.filter(u => !assignedUnits.some(au => au.unitId === u.id))" :key="unit.id">
-                  <button 
-                    type="button"
-                    @click="() => { 
-                      selectedUnitId = unit.id; 
-                      unitSearchQuery = unit.name;
-                      (unitInput as any)?.blur();
-                    }"
-                    :class="{ 'active': selectedUnitId === unit.id }"
-                  >
-                    <div class="flex flex-col items-start">
-                      <span class="font-medium">{{ unit.name }}</span>
-                      <span class="text-xs opacity-50">{{ unit.unitCode }}</span>
-                    </div>
-                  </button>
-                </li>
-                <li v-if="unitTotalPages > 1" class="border-t border-base-content/10 mt-2 pt-2">
-                  <div class="flex justify-between items-center px-4 py-2">
-                    <button 
-                      type="button"
-                      class="btn btn-xs" 
-                      :disabled="unitCurrentPage === 1 || unitLoading"
-                      @click.stop="loadAvailableUnits(unitSearchQuery, unitCurrentPage - 1)"
-                    >«</button>
-                    <span class="text-xs">Page {{ unitCurrentPage }} of {{ unitTotalPages }}</span>
-                    <button 
-                      type="button"
-                      class="btn btn-xs" 
-                      :disabled="unitCurrentPage === unitTotalPages || unitLoading"
-                      @click.stop="loadAvailableUnits(unitSearchQuery, unitCurrentPage + 1)"
-                    >»</button>
+            <!-- Units List with Checkboxes -->
+            <div class="border border-base-300 rounded-lg overflow-hidden bg-base-100 min-h-[300px] flex flex-col">
+               <div v-if="unitLoading && availableUnits.length === 0" class="flex-1 flex justify-center items-center py-10">
+                  <span class="loading loading-spinner loading-md"></span>
+               </div>
+               <div v-else-if="availableUnits.length === 0" class="flex-1 flex flex-col justify-center items-center py-10 text-base-content/50">
+                  <div class="p-4 bg-base-200 rounded-full mb-3">
+                    <Search class="w-8 h-8 opacity-20" />
                   </div>
-                </li>
-              </ul>
+                  <p>Unit tidak ditemukan</p>
+               </div>
+               <div v-else class="divide-y divide-base-200 overflow-y-auto max-h-[400px]">
+                  <label 
+                    v-for="unit in availableUnits" 
+                    :key="unit.id"
+                    class="flex items-center gap-3 p-3 hover:bg-base-200 cursor-pointer transition-colors"
+                  >
+                    <input 
+                      type="checkbox" 
+                      class="checkbox checkbox-primary checkbox-sm"
+                      :checked="assignedUnits.some(au => au.unitId === unit.id)"
+                      @change="toggleUnitAssignment(unit)"
+                    />
+                    <div class="flex-1">
+                      <p class="font-medium text-sm">{{ unit.name }}</p>
+                      <p class="text-[10px] text-base-content/50 uppercase tracking-wider">{{ unit.unitCode }}</p>
+                    </div>
+                    <div v-if="assignedUnits.some(au => au.unitId === unit.id)" class="badge badge-success badge-xs">Terdaftar</div>
+                  </label>
+               </div>
             </div>
-            
-            <div class="flex justify-between items-center">
-              <div v-if="selectedUnitId" class="text-sm">
-                <span class="text-success">Selected: {{ unitSearchQuery }}</span>
-                <button type="button" @click="() => { selectedUnitId = ''; unitSearchQuery = ''; loadAvailableUnits(); }" class="ml-2 link link-error">Clear</button>
+
+            <!-- Pagination -->
+            <div v-if="unitTotalPages > 1" class="flex items-center justify-between gap-4 mt-2 px-1">
+              <span class="text-[10px] font-medium text-base-content/60 uppercase">
+                Halaman {{ unitCurrentPage }} dari {{ unitTotalPages }}
+              </span>
+              <div class="join">
+                <button 
+                  type="button"
+                  class="btn btn-xs join-item" 
+                  :disabled="unitCurrentPage === 1 || unitLoading"
+                  @click="loadAvailableUnits(unitSearchQuery, unitCurrentPage - 1)"
+                >«</button>
+                <button 
+                  type="button"
+                  class="btn btn-xs join-item" 
+                  :disabled="unitCurrentPage === unitTotalPages || unitLoading"
+                  @click="loadAvailableUnits(unitSearchQuery, unitCurrentPage + 1)"
+                >»</button>
               </div>
-              <div v-else class="text-xs text-base-content/50">Select a unit above</div>
-              
-              <button
-                @click="assignUnitToIndicator"
-                class="btn btn-primary btn-sm"
-                :disabled="!selectedUnitId || unitLoading"
-              >
-                <Plus class="w-4 h-4" />
-                Assign Unit
-              </button>
             </div>
           </div>
 
           <div class="modal-action">
-            <button type="button" @click="closeUnitsModal" class="btn">Close</button>
+            <button type="button" @click="closeUnitsModal" class="btn btn-primary">Selesai</button>
           </div>
         </div>
         <form method="dialog" class="modal-backdrop">
-          <button type="button" @click="closeUnitsModal">close</button>
+          <button type="button" @click="closeUnitsModal">tutup</button>
         </form>
       </dialog>
     </Teleport>

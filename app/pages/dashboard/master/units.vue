@@ -258,7 +258,7 @@ const closeModal = () => {
 // Submit form
 const handleSubmit = async () => {
   if (!formData.value.divisionId) {
-    alert('Please select a division')
+    alert('Silakan pilih divisi')
     return
   }
   
@@ -292,7 +292,7 @@ const handleSubmit = async () => {
     }
   } catch (error: any) {
     console.error('Failed to save unit:', error)
-    alert(error?.data?.message || 'Failed to save unit')
+    alert(error?.data?.message || 'Gagal menyimpan unit')
   } finally {
     loading.value = false
   }
@@ -300,7 +300,7 @@ const handleSubmit = async () => {
 
 // Delete unit
 const handleDelete = async (id: string) => {
-  if (!confirm('Are you sure you want to delete this unit?')) return
+  if (!confirm('Apakah Anda yakin ingin menghapus unit ini?')) return
 
   loading.value = true
   try {
@@ -312,7 +312,7 @@ const handleDelete = async (id: string) => {
     }
   } catch (error: any) {
     console.error('Failed to delete unit:', error)
-    alert(error?.data?.message || 'Failed to delete unit')
+    alert(error?.data?.message || 'Gagal menghapus unit')
   } finally {
     loading.value = false
   }
@@ -332,12 +332,12 @@ onMounted(() => {
     <!-- Header -->
     <div class="flex justify-between items-center mb-6">
       <div>
-        <h1 class="text-2xl font-bold">Unit Management</h1>
-        <p class="text-base-content/70 text-sm mt-1">Manage organizational units</p>
+        <h1 class="text-2xl font-bold">Manajemen Unit</h1>
+        <p class="text-base-content/70 text-sm mt-1">Kelola unit organisasi</p>
       </div>
       <button @click="openCreateModal" class="btn btn-primary">
         <Plus :size="20" />
-        Add Unit
+        Tambah Unit
       </button>
     </div>
 
@@ -352,7 +352,7 @@ onMounted(() => {
           @change="handleFilterChange"
           class="select select-bordered w-full"
         >
-          <option value="">All Sites</option>
+          <option value="">Semua Site</option>
           <option v-for="site in sites" :key="site.id" :value="site.id">
             {{ site.name }}
           </option>
@@ -360,14 +360,14 @@ onMounted(() => {
       </div>
       <div>
         <label class="label">
-          <span class="label-text">Search</span>
+          <span class="label-text">Cari</span>
         </label>
         <div class="relative">
           <Search :size="20" class="absolute left-3 top-1/2 -translate-y-1/2 text-base-content/50" />
           <input
             v-model="searchQuery"
             type="text"
-            placeholder="Search units..."
+            placeholder="Cari unit..."
             class="input input-bordered w-full pl-10"
           />
         </div>
@@ -380,7 +380,7 @@ onMounted(() => {
         @click="() => { filterSiteId = ''; fetchUnits() }"
         class="btn btn-ghost btn-sm"
       >
-        Clear Filters
+        Hapus Filter
       </button>
     </div>
 
@@ -391,13 +391,13 @@ onMounted(() => {
           <table class="table">
             <thead>
               <tr>
-                <th>Unit Code</th>
-                <th>Name</th>
+                <th>Kode Unit</th>
+                <th>Nama</th>
                 <th>Site</th>
-                <th>Division</th>
-                <th>Location</th>
-                <th>Head of Unit</th>
-                <th class="text-right">Actions</th>
+                <th>Divisi</th>
+                <th>Lokasi</th>
+                <th>Kepala Unit</th>
+                <th class="text-right">Aksi</th>
               </tr>
             </thead>
             <tbody>
@@ -407,7 +407,7 @@ onMounted(() => {
                 </td>
               </tr>
               <tr v-else-if="units.length === 0">
-                <td colspan="7" class="text-center py-8 text-base-content/50">No units found</td>
+                <td colspan="7" class="text-center py-8 text-base-content/50">Unit tidak ditemukan</td>
               </tr>
               <tr v-for="unit in units" :key="unit.id" class="hover">
                 <td>{{ unit.unitCode }}</td>
@@ -436,7 +436,7 @@ onMounted(() => {
     <!-- Pagination Area -->
     <div v-if="totalPages > 0" class="mt-6 flex flex-col md:flex-row justify-between items-center gap-4">
       <div class="text-sm text-base-content/60">
-        Showing {{ totalItems > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0 }} to {{ Math.min(currentPage * itemsPerPage, totalItems) }} of {{ totalItems }} entries
+        Menampilkan {{ totalItems > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0 }} sampai {{ Math.min(currentPage * itemsPerPage, totalItems) }} dari {{ totalItems }} entri
       </div>
       <div class="join" v-if="totalPages > 1">
         <button 
@@ -444,7 +444,7 @@ onMounted(() => {
           class="join-item btn btn-sm" 
           :disabled="currentPage === 1 || loading"
         >
-          Previous
+          Sebelumnya
         </button>
         <button 
           v-for="page in displayedPages" 
@@ -461,7 +461,7 @@ onMounted(() => {
           class="join-item btn btn-sm" 
           :disabled="currentPage === totalPages || loading"
         >
-          Next
+          Selanjutnya
         </button>
       </div>
     </div>
@@ -471,7 +471,7 @@ onMounted(() => {
       <div v-if="modalOpen" class="modal modal-open">
         <div class="modal-box max-w-2xl max-h-[90vh] overflow-y-auto">
           <h3 class="font-bold text-lg mb-4">
-            {{ isEditMode ? 'Edit Unit' : 'Add New Unit' }}
+            {{ isEditMode ? 'Ubah Unit' : 'Tambah Unit Baru' }}
           </h3>
 
           <form @submit.prevent="handleSubmit" class="space-y-4">
@@ -481,9 +481,9 @@ onMounted(() => {
                 <span class="label-text">Site <span class="text-error">*</span></span>
               </label>
               <select v-model="formData.siteId" class="select select-bordered" required>
-                <option value="">Select Site</option>
+                <option value="">Pilih Site</option>
                 <option v-for="site in sites" :key="site.id" :value="site.id">
-                  {{ site.name }}
+                   {{ site.name }}
                 </option>
               </select>
             </div>
@@ -491,12 +491,12 @@ onMounted(() => {
             <!-- Unit Code -->
             <div class="form-control">
               <label class="label">
-                <span class="label-text">Unit Code <span class="text-error">*</span></span>
+                <span class="label-text">Kode Unit <span class="text-error">*</span></span>
               </label>
               <input
                 v-model="formData.unitCode"
                 type="text"
-                placeholder="UNIT001"
+                placeholder="Kode Unit"
                 class="input input-bordered"
                 required
               />
@@ -505,10 +505,10 @@ onMounted(() => {
             <!-- Division -->
             <div class="form-control">
               <label class="label">
-                <span class="label-text">Division <span class="text-error">*</span></span>
+                <span class="label-text">Divisi <span class="text-error">*</span></span>
               </label>
               <select v-model="formData.divisionId" class="select select-bordered" required>
-                <option value="">Select Division</option>
+                <option value="">Pilih Divisi</option>
                 <option v-for="division in divisions" :key="division.id" :value="division.id">
                   {{ division.name }}
                 </option>
@@ -518,12 +518,12 @@ onMounted(() => {
             <!-- Name -->
             <div class="form-control">
               <label class="label">
-                <span class="label-text">Name <span class="text-error">*</span></span>
+                <span class="label-text">Nama <span class="text-error">*</span></span>
               </label>
               <input
                 v-model="formData.name"
                 type="text"
-                placeholder="Engineering Unit"
+                placeholder="Nama Unit"
                 class="input input-bordered"
                 required
               />
@@ -532,11 +532,11 @@ onMounted(() => {
             <!-- Description -->
             <div class="form-control">
               <label class="label">
-                <span class="label-text">Description</span>
+                <span class="label-text">Deskripsi</span>
               </label>
               <textarea
                 v-model="formData.description"
-                placeholder="Unit description"
+                placeholder="Deskripsi unit"
                 class="textarea textarea-bordered h-24"
               ></textarea>
             </div>
@@ -544,12 +544,12 @@ onMounted(() => {
             <!-- Location -->
             <div class="form-control">
               <label class="label">
-                <span class="label-text">Location</span>
+                <span class="label-text">Lokasi</span>
               </label>
               <input
                 v-model="formData.location"
                 type="text"
-                placeholder="Building A, Floor 2"
+                placeholder="Gedung A, Lantai 2"
                 class="input input-bordered"
               />
             </div>
@@ -557,7 +557,7 @@ onMounted(() => {
             <!-- Head of Unit -->
             <div class="form-control">
               <label class="label">
-                <span class="label-text">Head of Unit</span>
+                <span class="label-text">Kepala Unit</span>
               </label>
               <div class="dropdown w-full">
                 <div class="relative">
@@ -565,7 +565,7 @@ onMounted(() => {
                     ref="employeeInput"
                     v-model="employeeSearchQuery"
                     type="text"
-                    placeholder="Search employee..."
+                    placeholder="Cari karyawan..."
                     class="input input-bordered w-full"
                     @input="handleEmployeeSearch"
                     @focus="() => { if (!employeeSearchQuery) fetchEmployees() }"
@@ -577,7 +577,7 @@ onMounted(() => {
                 
                 <ul class="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-full max-h-60 overflow-y-auto mt-1 border border-base-content/10">
                   <li v-if="employees.length === 0 && !employeeLoading">
-                    <a class="text-base-content/50">No employees found</a>
+                    <a class="text-base-content/50">Karyawan tidak ditemukan</a>
                   </li>
                   <li v-for="employee in employees" :key="employee.id">
                     <button 
@@ -603,7 +603,7 @@ onMounted(() => {
                         :disabled="employeeCurrentPage === 1 || employeeLoading"
                         @click.stop="fetchEmployees(employeeSearchQuery, employeeCurrentPage - 1)"
                       >«</button>
-                      <span class="text-xs">Page {{ employeeCurrentPage }} of {{ employeeTotalPages }}</span>
+                      <span class="text-xs">Halaman {{ employeeCurrentPage }} dari {{ employeeTotalPages }}</span>
                       <button 
                         type="button"
                         class="btn btn-xs" 
@@ -616,19 +616,19 @@ onMounted(() => {
               </div>
               <input type="hidden" v-model="formData.headOfUnit" />
               <label class="label" v-if="formData.headOfUnit">
-                <span class="label-text-alt text-success">Selected: {{ employeeSearchQuery }}</span>
-                <button type="button" @click="() => { formData.headOfUnit = ''; employeeSearchQuery = ''; fetchEmployees(); }" class="label-text-alt link link-error">Clear</button>
+                <span class="label-text-alt text-success">Terpilih: {{ employeeSearchQuery }}</span>
+                <button type="button" @click="() => { formData.headOfUnit = ''; employeeSearchQuery = ''; fetchEmployees(); }" class="label-text-alt link link-error">Hapus</button>
               </label>
             </div>
 
             <!-- Actions -->
             <div class="modal-action">
               <button type="button" @click="closeModal" class="btn btn-ghost" :disabled="loading">
-                Cancel
+                Batal
               </button>
               <button type="submit" class="btn btn-primary" :disabled="loading">
                 <span v-if="loading" class="loading loading-spinner loading-sm"></span>
-                {{ isEditMode ? 'Update' : 'Create' }}
+                {{ isEditMode ? 'Perbarui' : 'Simpan' }}
               </button>
             </div>
           </form>

@@ -46,10 +46,8 @@ interface ReportData {
     headOfUnit: string | null
   }
   period: {
-    day: number
-    month: number
-    year: number
-    monthName: string
+    startDate: string
+    endDate: string
     formatted: string
   }
   items: ReportItem[]
@@ -73,7 +71,12 @@ const unitNameSelect = ref('')
 
 // Filter state
 const selectedUnitId = ref((route.query.unitId as string) || '')
-const selectedDate = ref((route.query.date as string) || new Date().toISOString().split('T')[0])
+const now = new Date()
+const lastWeek = new Date(now)
+lastWeek.setDate(now.getDate() - 6)
+
+const startDate = ref((route.query.startDate as string) || (route.query.date as string) || lastWeek.toISOString().split('T')[0])
+const endDate = ref((route.query.endDate as string) || (route.query.date as string) || now.toISOString().split('T')[0])
 
 // Fetch units
 async function fetchUnits(search = '', page = 1, fetchById = '') {
@@ -133,8 +136,8 @@ const handleUnitSearch = () => {
 
 // Fetch report data
 async function fetchReport() {
-  if (!selectedUnitId.value || !selectedDate.value) {
-    error.value = 'Please select a unit and date'
+  if (!selectedUnitId.value || !startDate.value || !endDate.value) {
+    error.value = 'Silakan pilih unit dan periode tanggal'
     return
   }
 
@@ -143,17 +146,23 @@ async function fetchReport() {
   
   try {
     const response = await $fetch<{ success: boolean; data: ReportData; message?: string }>(
-      `/api/reports/unit-daily?unitId=${selectedUnitId.value}&date=${selectedDate.value}`
+      `/api/reports/unit-daily`, {
+        query: {
+          unitId: selectedUnitId.value,
+          startDate: startDate.value,
+          endDate: endDate.value
+        }
+      }
     )
     
     if (response.success) {
       reportData.value = response.data
     } else {
-      error.value = response.message || 'Failed to load report data'
+      error.value = response.message || 'Gagal memuat data laporan'
     }
   } catch (err: any) {
     console.error('Failed to fetch report:', err)
-    error.value = err.data?.message || err.message || 'Failed to load report data'
+    error.value = err.data?.message || err.message || 'Gagal memuat data laporan'
   } finally {
     loading.value = false
   }
@@ -195,17 +204,17 @@ function formatCapaian(item: ReportItem) {
 // Get status display
 function getStatusDisplay(status: string) {
   switch (status) {
-    case 'proposed': return 'On Progress'
-    case 'checked': return 'On Progress'
-    case 'pending': return 'On Progress'
-    case 'finish': return 'Closed'
+    case 'proposed': return 'Dalam Proses'
+    case 'checked': return 'Dalam Proses'
+    case 'pending': return 'Dalam Proses'
+    case 'finish': return 'Selesai'
     default: return status
   }
 }
 
 // Watch for filter changes
-watch([selectedUnitId, selectedDate], () => {
-  if (selectedUnitId.value && selectedDate.value) {
+watch([selectedUnitId, startDate, endDate], () => {
+  if (selectedUnitId.value && startDate.value && endDate.value) {
     fetchReport()
   }
 })
@@ -224,7 +233,7 @@ onMounted(async () => {
     await fetchUnits()
   }
   
-  if (selectedUnitId.value && selectedDate.value) {
+  if (selectedUnitId.value && startDate.value && endDate.value) {
     await fetchReport()
   } else {
     loading.value = false
@@ -270,7 +279,7 @@ onMounted(async () => {
                 
                 <ul class="dropdown-content z-[20] menu p-2 shadow bg-base-100 rounded-box w-full max-h-60 overflow-y-auto mt-1 border border-base-content/10">
                   <li v-if="units.length === 0 && !loadingUnits">
-                    <a class="text-base-content/50">No units found</a>
+                    <a class="text-base-content/50">Unit tidak ditemukan</a>
                   </li>
                   <li v-for="unit in units" :key="unit.id">
                     <button 
@@ -296,7 +305,7 @@ onMounted(async () => {
                         :disabled="unitCurrentPage === 1 || loadingUnits"
                         @click.stop="fetchUnits(unitSearchQuery, unitCurrentPage - 1)"
                       >«</button>
-                      <span class="text-[10px]">Page {{ unitCurrentPage }} of {{ unitTotalPages }}</span>
+                      <span class="text-[10px]">Halaman {{ unitCurrentPage }} dari {{ unitTotalPages }}</span>
                       <button 
                         type="button"
                         class="btn btn-xs" 
@@ -314,11 +323,17 @@ onMounted(async () => {
             </div>
             
             <!-- Date Selector -->
-            <div class="form-control">
+            <div class="flex items-center gap-2">
               <input
-                v-model="selectedDate"
+                v-model="startDate"
                 type="date"
-                class="input input-bordered input-sm w-40"
+                class="input input-bordered input-sm w-36"
+              />
+              <span class="text-sm">s/d</span>
+              <input
+                v-model="endDate"
+                type="date"
+                class="input input-bordered input-sm w-36"
               />
             </div>
             
@@ -354,7 +369,7 @@ onMounted(async () => {
       <!-- No Data State -->
       <div v-else-if="!reportData" class="flex flex-col items-center justify-center h-96 text-center print:hidden">
         <Calendar class="w-16 h-16 text-gray-400 mb-4" />
-        <p class="text-gray-500 text-lg">Pilih unit dan tanggal untuk melihat laporan</p>
+        <p class="text-gray-500 text-lg">Pilih unit dan periode tanggal untuk melihat laporan</p>
       </div>
       
       <!-- Report -->
@@ -387,7 +402,7 @@ onMounted(async () => {
         <!-- Report Title -->
         <div class="text-center mb-6">
           <h2 class="text-lg font-bold text-gray-900">
-            Laporan Mutu Indikator Unit Tanggal {{ reportData.period.formatted }}
+            Laporan Mutu Indikator Unit Periode {{ reportData.period.formatted }}
             Pada Unit {{ reportData.unit.name }}
           </h2>
         </div>
@@ -416,22 +431,21 @@ onMounted(async () => {
                 <td class="border border-gray-400 px-2 py-2 text-center">{{ item.code }}</td>
                 <td class="border border-gray-400 px-2 py-2">{{ item.judul }}</td>
                 <td class="border border-gray-400 px-2 py-2 text-xs">
-                  <div v-if="item.numerator || item.denominator">
-                    <div v-if="item.numerator" class="mb-1">
-                      <span class="font-semibold">N:</span> {{ item.numerator }}
+                  <div class="space-y-1">
+                    <div v-if="item.numeratorValue !== null">
+                      <span class="font-semibold">N:</span> {{ item.numeratorValue }}
                     </div>
-                    <div v-if="item.denominator">
-                      <span class="font-semibold">D:</span> {{ item.denominator }}
+                    <div v-if="item.denominatorValue !== null">
+                      <span class="font-semibold">D:</span> {{ item.denominatorValue }}
                     </div>
                   </div>
-                  <span v-else>-</span>
                 </td>
                 <td class="border border-gray-400 px-2 py-2 text-center">{{ item.bobot || '-' }}</td>
                 <td class="border border-gray-400 px-2 py-2 text-center">{{ item.hasil !== null ? item.hasil.toFixed(2) : '-' }}</td>
                 <td class="border border-gray-400 px-2 py-2 text-center">{{ formatCapaian(item) }}</td>
                 <td class="border border-gray-400 px-2 py-2 text-center">{{ formatStandar(item) }}</td>
                 <td class="border border-gray-400 px-2 py-2 text-center">{{ item.skor !== null ? item.skor.toFixed(0) : '-' }}</td>
-                <td class="border border-gray-400 px-2 py-2 text-center">{{ item.point !== null ? item.point : '-' }}</td>
+                <td class="border border-gray-400 px-2 py-2 text-center">{{ item.point !== null ? item.point.toFixed(2) : '-' }}</td>
                 <td class="border border-gray-400 px-2 py-2 text-center">
                   <span v-if="item.isNeedPDCA" class="text-red-600 font-semibold">Ya</span>
                   <span v-else>-</span>
@@ -443,7 +457,7 @@ onMounted(async () => {
               <!-- Empty state -->
               <tr v-if="reportData.items.length === 0">
                 <td colspan="12" class="border border-gray-400 px-4 py-8 text-center text-gray-500">
-                  Tidak ada data indikator untuk tanggal ini
+                  Tidak ada data indikator untuk periode ini
                 </td>
               </tr>
             </tbody>

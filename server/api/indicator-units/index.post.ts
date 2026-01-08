@@ -10,7 +10,7 @@ export default defineEventHandler(async (event) => {
     if (!indicatorId || !unitId) {
       return {
         success: false,
-        message: 'Indicator ID and Unit ID are required',
+        message: 'ID Indikator dan ID Unit wajib diisi',
       }
     }
 
@@ -22,7 +22,7 @@ export default defineEventHandler(async (event) => {
     await logActivity({
       event,
       action: 'CREATE',
-      module: 'indicator-units',
+      module: 'indicators',
       description: `Menambahkan unit ke indikator`,
       details: { indicatorUnitId: newIndicatorUnit[0].id, indicatorId, unitId }
     })
@@ -30,13 +30,13 @@ export default defineEventHandler(async (event) => {
     return {
       success: true,
       data: newIndicatorUnit[0],
-      message: 'Unit assigned to indicator successfully',
+      message: 'Unit berhasil didaftarkan ke indikator',
     }
   } catch (error: any) {
     console.error('Create indicator unit error:', error)
     return {
       success: false,
-      message: error.message || 'Failed to assign unit to indicator',
+      message: error.message || 'Gagal mendaftarkan unit ke indikator',
     }
   }
 })

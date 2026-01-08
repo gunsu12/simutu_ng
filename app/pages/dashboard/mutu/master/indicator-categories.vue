@@ -110,12 +110,12 @@ const closeModal = () => {
 
 const saveCategory = async () => {
   if (!form.value.name.trim()) {
-    errorMessage.value = 'Name is required'
+    errorMessage.value = 'Nama kategori wajib diisi'
     return
   }
 
   if (isAdmin.value && !form.value.siteId && !isEditing.value) {
-    errorMessage.value = 'Site is required'
+    errorMessage.value = 'Site wajib dipilih'
     return
   }
 
@@ -132,7 +132,7 @@ const saveCategory = async () => {
         await refresh()
         closeModal()
       } else {
-        errorMessage.value = response.message || 'Failed to update category'
+        errorMessage.value = response.message || 'Gagal memperbarui kategori'
       }
     } else {
       const response = await $fetch<{ success: boolean; message?: string }>('/api/indicator-categories', {
@@ -143,7 +143,7 @@ const saveCategory = async () => {
         await refresh()
         closeModal()
       } else {
-        errorMessage.value = response.message || 'Failed to create category'
+        errorMessage.value = response.message || 'Gagal membuat kategori'
       }
     }
   } catch (err: any) {
@@ -155,7 +155,7 @@ const saveCategory = async () => {
 }
 
 const deleteCategory = async (id: string) => {
-  if (!confirm('Are you sure you want to delete this category? This will also delete all indicators in this category.')) return
+  if (!confirm('Apakah Anda yakin ingin menghapus kategori ini? Ini juga akan menghapus semua indikator dalam kategori ini.')) return
   
   try {
     const response = await $fetch(`/api/indicator-categories/${id}`, {
@@ -166,7 +166,7 @@ const deleteCategory = async (id: string) => {
     }
   } catch (err: any) {
     console.error('Error deleting category:', err)
-    alert(err.data?.message || 'Failed to delete category')
+    alert(err.data?.message || 'Gagal menghapus kategori')
   }
 }
 </script>
@@ -176,13 +176,13 @@ const deleteCategory = async (id: string) => {
     <!-- Header -->
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
       <div>
-        <h1 class="text-2xl font-bold text-base-content">Indicator Categories</h1>
+        <h1 class="text-2xl font-bold text-base-content">Kategori Indikator</h1>
         <p class="text-base-content/60 mt-1">Kelola kategori indikator mutu</p>
       </div>
       <div class="flex gap-2">
         <button type="button" @click="refresh()" class="btn btn-ghost btn-sm gap-2" :disabled="loading">
           <RefreshCw class="w-4 h-4" :class="{ 'animate-spin': loading }" />
-          Refresh
+          Segarkan
         </button>
         <button type="button" @click="openCreateModal" class="btn btn-primary gap-2">
           <Plus class="w-4 h-4" />
@@ -193,8 +193,8 @@ const deleteCategory = async (id: string) => {
 
     <!-- Error Alert -->
     <div v-if="error" class="alert alert-error">
-      <span>{{ error.message || 'Failed to load categories' }}</span>
-      <button @click="refresh()" class="btn btn-sm">Retry</button>
+      <span>{{ error.message || 'Gagal memuat kategori' }}</span>
+      <button @click="refresh()" class="btn btn-sm">Coba Lagi</button>
     </div>
 
     <!-- Search -->
@@ -206,7 +206,7 @@ const deleteCategory = async (id: string) => {
             <input
               v-model="searchQuery"
               type="text"
-              placeholder="Search categories..."
+              placeholder="Cari kategori..."
               class="input input-sm input-bordered flex-1"
             />
           </div>
@@ -232,11 +232,11 @@ const deleteCategory = async (id: string) => {
         <div v-else-if="filteredCategories.length === 0" class="flex flex-col items-center justify-center p-12 text-center">
           <FolderOpen class="w-16 h-16 text-base-content/20 mb-4" />
           <p class="text-base-content/60">
-            {{ searchQuery ? 'No categories found' : 'No categories yet' }}
+            {{ searchQuery ? 'Kategori tidak ditemukan' : 'Belum ada kategori' }}
           </p>
           <button v-if="!searchQuery" @click="openCreateModal" class="btn btn-primary btn-sm mt-4">
             <Plus class="w-4 h-4" />
-            Create First Category
+            Buat Kategori Pertama
           </button>
         </div>
 
@@ -244,10 +244,10 @@ const deleteCategory = async (id: string) => {
           <table class="table table-zebra">
             <thead>
               <tr>
-                <th>Name</th>
-                <th>Description</th>
-                <th>Created At</th>
-                <th class="text-right">Actions</th>
+                <th>Nama</th>
+                <th>Deskripsi</th>
+                <th>Dibuat Pada</th>
+                <th class="text-right">Aksi</th>
               </tr>
             </thead>
             <tbody>
@@ -260,14 +260,14 @@ const deleteCategory = async (id: string) => {
                     <button
                       @click="openEditModal(category)"
                       class="btn btn-ghost btn-sm btn-square"
-                      title="Edit"
+                      title="Ubah"
                     >
                       <Edit class="w-4 h-4" />
                     </button>
                     <button
                       @click="deleteCategory(category.id)"
                       class="btn btn-ghost btn-sm btn-square text-error"
-                      title="Delete"
+                      title="Hapus"
                     >
                       <Trash2 class="w-4 h-4" />
                     </button>
@@ -287,7 +287,7 @@ const deleteCategory = async (id: string) => {
           <div class="modal-box">
             <button type="button" class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" @click="closeModal">✕</button>
             <h3 class="font-bold text-lg mb-4">
-              {{ isEditing ? 'Edit Kategori' : 'Tambah Kategori' }}
+              {{ isEditing ? 'Ubah Kategori' : 'Tambah Kategori' }}
             </h3>
 
             <!-- Error Message -->
@@ -315,12 +315,12 @@ const deleteCategory = async (id: string) => {
 
               <div class="form-control">
                 <label class="label">
-                  <span class="label-text">Name <span class="text-error">*</span></span>
+                  <span class="label-text">Nama <span class="text-error">*</span></span>
                 </label>
                 <input
                   v-model="form.name"
                   type="text"
-                  placeholder="Category name"
+                  placeholder="Nama kategori"
                   class="input input-bordered"
                   required
                   :disabled="saving"
@@ -329,11 +329,11 @@ const deleteCategory = async (id: string) => {
 
               <div class="form-control">
                 <label class="label">
-                  <span class="label-text">Description</span>
+                  <span class="label-text">Deskripsi</span>
                 </label>
                 <textarea
                   v-model="form.description"
-                  placeholder="Category description"
+                  placeholder="Deskripsi kategori"
                   class="textarea textarea-bordered h-24"
                   :disabled="saving"
                 ></textarea>
@@ -343,13 +343,13 @@ const deleteCategory = async (id: string) => {
                 <button type="button" @click="closeModal" class="btn" :disabled="saving">Batal</button>
                 <button type="submit" class="btn btn-primary" :disabled="saving">
                   <span v-if="saving" class="loading loading-spinner loading-sm"></span>
-                  <span v-else>{{ isEditing ? 'Update' : 'Simpan' }}</span>
+                  <span v-else>{{ isEditing ? 'Perbarui' : 'Simpan' }}</span>
                 </button>
               </div>
             </form>
           </div>
           <form method="dialog" class="modal-backdrop">
-            <button type="button" @click="closeModal">close</button>
+            <button type="button" @click="closeModal">tutup</button>
           </form>
         </dialog>
       </ClientOnly>

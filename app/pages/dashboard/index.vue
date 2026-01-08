@@ -236,7 +236,7 @@ const formatDate = (date: string | Date) => {
             <Calendar class="w-5 h-5 text-primary" />
             <h2 class="card-title text-lg">Entri Harian Hari Ini</h2>
           </div>
-          <NuxtLink to="/dashboard/mutu/indicator-entries" class="btn btn-ghost btn-sm">
+          <NuxtLink to="/dashboard/mutu/nilai-unit" class="btn btn-ghost btn-sm">
             Lihat Semua
           </NuxtLink>
         </div>
@@ -279,7 +279,7 @@ const formatDate = (date: string | Date) => {
                 </td>
                 <td>
                   <NuxtLink 
-                    :to="`/dashboard/mutu/indicator-entries/${entry.id}`" 
+                    :to="`/dashboard/mutu/nilai-unit?id=${entry.id}`" 
                     class="btn btn-ghost btn-xs gap-1"
                   >
                     <Eye class="w-3 h-3" />
@@ -296,7 +296,7 @@ const formatDate = (date: string | Date) => {
     <!-- Quick Links -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
       <NuxtLink 
-        to="/dashboard/mutu/indicator-entries/create" 
+        to="/dashboard/mutu/nilai-unit" 
         class="card bg-primary/5 border border-primary/20 hover:bg-primary/10 transition-colors cursor-pointer"
       >
         <div class="card-body py-4">
@@ -313,7 +313,7 @@ const formatDate = (date: string | Date) => {
       </NuxtLink>
 
       <NuxtLink 
-        to="/dashboard/mutu/indicator-entries?status=pending,proposed" 
+        to="/dashboard/mutu/nilai-unit?status=pending,proposed" 
         class="card bg-warning/5 border border-warning/20 hover:bg-warning/10 transition-colors cursor-pointer"
       >
         <div class="card-body py-4">

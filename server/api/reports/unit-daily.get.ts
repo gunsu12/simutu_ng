@@ -1,6 +1,6 @@
 import { db } from '../../database'
 import { indicatorEntries, indicatorEntryItems, indicators, units, sites, employees } from '../../database/schema'
-import { eq, isNull, and, gte, lte, desc } from 'drizzle-orm'
+import { eq, isNull, and, gte, lte, desc, sql } from 'drizzle-orm'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -14,7 +14,8 @@ export default defineEventHandler(async (event) => {
 
     const query = getQuery(event)
     const unitId = query.unitId as string
-    const date = query.date as string // Format: YYYY-MM-DD
+    const startDateQuery = query.startDate as string
+    const endDateQuery = query.endDate as string
 
     if (!unitId) {
       throw createError({
@@ -23,17 +24,24 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    if (!date) {
+    if (!startDateQuery || !endDateQuery) {
       throw createError({
         statusCode: 400,
-        message: 'Date is required (format: YYYY-MM-DD)',
+        message: 'Start date and end date are required',
       })
     }
 
-    // Parse date boundaries for the requested day
-    const [year, month, day] = date.split('-').map(Number)
-    const startDate = new Date(year, month - 1, day, 0, 0, 0, 0)
-    const endDate = new Date(year, month - 1, day, 23, 59, 59, 999)
+    // Parse dates manually to avoid timezone shifts
+    const parseDate = (dateStr: string, isEnd: boolean) => {
+      const [year, month, day] = dateStr.split('-').map(Number)
+      if (isEnd) {
+        return new Date(year, month - 1, day, 23, 59, 59, 999)
+      }
+      return new Date(year, month - 1, day, 0, 0, 0, 0)
+    }
+
+    const startDate = parseDate(startDateQuery, false)
+    const endDate = parseDate(endDateQuery, true)
 
     // Fetch unit with site info
     const [unitData] = await db
@@ -54,12 +62,28 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Fetch indicator entries for this unit and day (daily frequency)
-    const entries = await db
+    // Fetch and aggregate indicator entries for this unit and period
+    // We group by indicatorId and necessary indicator columns
+    const aggregatedData = await db
       .select({
-        entry: indicatorEntries,
+        indicatorId: indicatorEntryItems.indicatorId,
+        totalNumerator: sql<number>`sum(CAST(${indicatorEntryItems.numeratorValue} AS NUMERIC))`,
+        totalDenominator: sql<number>`sum(CAST(${indicatorEntryItems.denominatorValue} AS NUMERIC))`,
+        // Select specific indicator columns to avoid GROUP BY issues with all columns
+        id: indicators.id,
+        code: indicators.code,
+        judul: indicators.judul,
+        numerator: indicators.numerator,
+        denominator: indicators.denominator,
+        targetCalculationFormula: indicators.targetCalculationFormula,
+        target: indicators.target,
+        targetWeight: indicators.targetWeight,
+        targetUnit: indicators.targetUnit,
+        targetKeterangan: indicators.targetKeterangan,
       })
-      .from(indicatorEntries)
+      .from(indicatorEntryItems)
+      .innerJoin(indicatorEntries, eq(indicatorEntryItems.indicatorEntryId, indicatorEntries.id))
+      .innerJoin(indicators, eq(indicatorEntryItems.indicatorId, indicators.id))
       .where(
         and(
           eq(indicatorEntries.unitId, unitId),
@@ -69,103 +93,107 @@ export default defineEventHandler(async (event) => {
           isNull(indicatorEntries.deletedAt)
         )
       )
-      .orderBy(desc(indicatorEntries.createdAt))
+      .groupBy(
+        indicatorEntryItems.indicatorId,
+        indicators.id,
+        indicators.code,
+        indicators.judul,
+        indicators.numerator,
+        indicators.denominator,
+        indicators.targetCalculationFormula,
+        indicators.target,
+        indicators.targetWeight,
+        indicators.targetUnit,
+        indicators.targetKeterangan
+      )
 
     const reportItems: any[] = []
 
-    for (const { entry } of entries) {
-      const items = await db
-        .select({
-          item: indicatorEntryItems,
-          indicator: indicators,
-        })
-        .from(indicatorEntryItems)
-        .leftJoin(indicators, eq(indicatorEntryItems.indicatorId, indicators.id))
-        .where(eq(indicatorEntryItems.indicatorEntryId, entry.id))
+    for (const item of aggregatedData) {
+      let capaian: number | null = null
+      const numerator = item.totalNumerator !== null ? Number(item.totalNumerator) : 0
+      const denominator = item.totalDenominator !== null ? Number(item.totalDenominator) : 0
 
-      for (const { item, indicator } of items) {
-        if (!indicator) continue
+      // Formula logic based on master data
+      const formula = item.targetCalculationFormula || '(N/D)*100'
 
-        let capaian: number | null = null
-        const numerator = item.numeratorValue ? Number(item.numeratorValue) : null
-        const denominator = item.denominatorValue ? Number(item.denominatorValue) : null
-
-        if (numerator !== null && denominator !== null && denominator !== 0) {
-          const formula = indicator.targetCalculationFormula || '(N/D)*100'
-          switch (formula) {
-            case 'N/D':
-              capaian = numerator / denominator
-              break
-            case 'N-D':
-              capaian = numerator - denominator
-              break
-            case '(N/D)*100':
-            default:
-              capaian = (numerator / denominator) * 100
-              break
+      if (formula.includes('/D')) {
+        if (denominator !== 0) {
+          if (formula === 'N/D') {
+            capaian = numerator / denominator
+          } else {
+            // Default to (N/D)*100
+            capaian = (numerator / denominator) * 100
           }
+        } else {
+          capaian = 0
         }
-
-        const target = indicator.target ? Number(indicator.target) : null
-        const targetWeight = indicator.targetWeight ? Number(indicator.targetWeight) : 0
-        let skor: number | null = null
-        let point: number | null = null
-
-        if (capaian !== null && target !== null) {
-          const keterangan = indicator.targetKeterangan || '>='
-          let achieved = false
-
-          switch (keterangan) {
-            case '>':
-              achieved = capaian > target
-              break
-            case '<':
-              achieved = capaian < target
-              break
-            case '=':
-              achieved = capaian === target
-              break
-            case '>=':
-              achieved = capaian >= target
-              break
-            case '<=':
-              achieved = capaian <= target
-              break
-          }
-
-          skor = achieved ? 100 : (capaian / target) * 100
-          point = achieved ? targetWeight : 0
-        }
-
-        reportItems.push({
-          indicatorId: indicator.id,
-          code: indicator.code,
-          judul: indicator.judul,
-          numerator: indicator.numerator,
-          denominator: indicator.denominator,
-          numeratorValue: numerator,
-          denominatorValue: denominator,
-          bobot: targetWeight,
-          hasil: item.numeratorDenominatorResult ? Number(item.numeratorDenominatorResult) : capaian,
-          capaian: capaian,
-          standar: target,
-          standarUnit: indicator.targetUnit,
-          standarKeterangan: indicator.targetKeterangan,
-          skor: item.skor ? Number(item.skor) : skor,
-          point: point,
-          isNeedPDCA: item.isNeedPDCA,
-          status: entry.status,
-          notes: item.notes,
-          entryDate: entry.entryDate,
-        })
+      } else if (formula === 'N-D') {
+        capaian = numerator - denominator
+      } else if (formula === 'N') {
+        capaian = numerator
       }
-    }
 
-    const monthNames = [
-      'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-      'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
-    ]
-    const monthName = monthNames[month - 1]
+      const target = item.target ? Number(item.target) : 0
+      const targetWeight = item.targetWeight ? Number(item.targetWeight) : 0
+      let skor: number | null = null
+      let point: number | null = null
+
+      if (capaian !== null) {
+        const keterangan = item.targetKeterangan || '>='
+        let achieved = false
+
+        switch (keterangan) {
+          case '>':
+            achieved = capaian > target
+            break
+          case '<':
+            achieved = capaian < target
+            break
+          case '=':
+            achieved = capaian === target
+            break
+          case '>=':
+            achieved = capaian >= target
+            break
+          case '<=':
+            achieved = capaian <= target
+            break
+        }
+
+        skor = achieved ? 100 : (target !== 0 ? (capaian / target) * 100 : 0)
+        // Ensure skor doesn't exceed 100 if target is met or exceed
+        if (skor > 100) skor = 100
+        // Handle case where higher is worse (e.g. <= target)
+        if (!achieved && (keterangan === '<' || keterangan === '<=')) {
+          // If the target is <= 5 and capaian is 10, the score should be lower than 100
+          // A simple way is to use (target/capaian)*100 if capaian > target
+          skor = capaian !== 0 ? (target / capaian) * 100 : 0
+        }
+
+        point = (skor / 100) * targetWeight
+      }
+
+      reportItems.push({
+        indicatorId: item.id,
+        code: item.code,
+        judul: item.judul,
+        numerator: item.numerator,
+        denominator: item.denominator,
+        numeratorValue: numerator,
+        denominatorValue: denominator,
+        bobot: targetWeight,
+        hasil: capaian, // Results of N/D or N-D
+        capaian: capaian,
+        standar: target,
+        standarUnit: item.targetUnit,
+        standarKeterangan: item.targetKeterangan,
+        skor: skor,
+        point: point,
+        isNeedPDCA: (skor ?? 0) < 100, // Typically needed if not 100%
+        status: 'finish', // For aggregated report, we might just mark as finish if entries exist
+      })
+    }
 
     return {
       success: true,
@@ -183,11 +211,9 @@ export default defineEventHandler(async (event) => {
           headOfUnit: unitData.headOfUnit?.fullName,
         },
         period: {
-          day: day,
-          month: month,
-          year: year,
-          monthName: monthName,
-          formatted: `${day} ${monthName} ${year}`,
+          startDate: startDateQuery,
+          endDate: endDateQuery,
+          formatted: startDateQuery === endDateQuery ? startDateQuery : `${startDateQuery} s/d ${endDateQuery}`,
         },
         items: reportItems,
         generatedAt: new Date().toISOString(),
@@ -201,3 +227,4 @@ export default defineEventHandler(async (event) => {
     }
   }
 })
+

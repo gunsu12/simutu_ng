@@ -75,15 +75,15 @@ const menuItems: MenuItem[] = [
         name: 'Master', 
         icon: Database,
         children: [
-          { name: 'Indicator Categories', path: '/dashboard/mutu/master/indicator-categories', icon: ClipboardList },
-          { name: 'Indicator Mutu', path: '/dashboard/mutu/master/indicators', icon: Award }
+          { name: 'Kategori Indikator', path: '/dashboard/mutu/master/indicator-categories', icon: ClipboardList },
+          { name: 'Indikator Mutu', path: '/dashboard/mutu/master/indicators', icon: Award }
         ]
       },
-      { name: 'Nilai Mutu Unit', path: '/dashboard/mutu/nilai-unit', icon: Calculator },
+      { name: 'Entri Nilai Mutu Indikator', path: '/dashboard/mutu/nilai-unit', icon: Calculator },
       { name: 'Laporan Kegiatan PDCA', path: '/dashboard/mutu/pdca', icon: ClipboardCheck },
       { name: 'Verifikasi', path: '/dashboard/mutu/verifikasi', icon: ClipboardCheck },
       { 
-        name: 'Report', 
+        name: 'Laporan', 
         icon: FileText,
         children: [
           { name: 'Mutu Bulanan', path: '/dashboard/mutu/report/bulanan', icon: Calendar },
@@ -94,36 +94,36 @@ const menuItems: MenuItem[] = [
     ]
   },
   { 
-    name: 'Master Data', 
+    name: 'Data Master', 
     icon: Database,
     children: [
-      { name: 'Employee', path: '/dashboard/master/employee', icon: Users },
-      { name: 'Division', path: '/dashboard/master/division', icon: Building2 },
-      { name: 'Units', path: '/dashboard/master/units', icon: Boxes },
+      { name: 'Karyawan', path: '/dashboard/master/employee', icon: Users },
+      { name: 'Divisi', path: '/dashboard/master/division', icon: Building2 },
+      { name: 'Unit', path: '/dashboard/master/units', icon: Boxes },
       { name: 'Site', path: '/dashboard/master/site', icon: MapPin },
-      { name: 'User Management', path: '/dashboard/master/users', icon: UserCog }
+      { name: 'Manajemen Pengguna', path: '/dashboard/master/users', icon: UserCog }
     ]
   },
   {
     name: 'Admin',
     icon: Shield,
     children: [
-      { name: 'Sync Data', path: '/dashboard/admin/sync', icon: RefreshCw },
-      { name: 'Activity Logs', path: '/dashboard/activity-logs', icon: Activity }
+      { name: 'Sinkronisasi Data', path: '/dashboard/admin/sync', icon: RefreshCw },
+      { name: 'Log Aktivitas', path: '/dashboard/activity-logs', icon: Activity }
     ]
   },
   { 
-    name: 'Setting', 
+    name: 'Pengaturan', 
     icon: Settings,
     children: [
-      { name: 'Profile', path: '/dashboard/settings/profile', icon: User },
+      { name: 'Profil', path: '/dashboard/settings/profile', icon: User },
       // { name: 'Update Password', path: '/dashboard/settings/password', icon: KeyRound }
     ]
   }
 ]
 
 const bottomMenuItems: MenuItem[] = [
-  { name: 'Help & Support', path: '/dashboard/help', icon: HelpCircle }
+  { name: 'Bantuan & Dukungan', path: '/dashboard/help', icon: HelpCircle }
 ]
 
 // Filter menu items based on user role
@@ -162,10 +162,10 @@ const filteredMenuItems = computed(() => {
     if (item.name === 'Mutu') return true
     
     // Show Settings menu
-    if (item.name === 'Setting') return true
+    if (item.name === 'Pengaturan') return true
     
     // Hide Master Data menu for non-admin users
-    if (item.name === 'Master Data') return false
+    if (item.name === 'Data Master') return false
 
     // Hide Admin menu for non-admin users
     if (item.name === 'Admin') return false
@@ -308,7 +308,7 @@ watch(() => user.value, (newUser) => {
           <button 
             class="hidden lg:flex btn btn-ghost btn-xs btn-square"
             @click="emit('togglePin')"
-            :title="isPinned ? 'Unpin sidebar' : 'Pin sidebar'"
+            :title="isPinned ? 'Lepas sematan sidebar' : 'Sematkan sidebar'"
           >
             <Pin v-if="!isPinned" class="w-4 h-4" />
             <PinOff v-else class="w-4 h-4 text-primary" />

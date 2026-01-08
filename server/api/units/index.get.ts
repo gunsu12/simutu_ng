@@ -1,6 +1,6 @@
 import { db } from '../../database'
 import { units, divisions, employees, sites } from '../../database/schema'
-import { eq, and, isNull, sql, ilike, or } from 'drizzle-orm'
+import { eq, and, isNull, sql, ilike, or, inArray } from 'drizzle-orm'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -14,6 +14,7 @@ export default defineEventHandler(async (event) => {
 
     const query = getQuery(event)
     const siteIdParam = query.siteId as string
+    const divisionIdParam = query.divisionId as string
     const unitIdParam = query.id as string
     const search = query.search as string
     const page = parseInt(query.page as string) || 1
@@ -26,7 +27,20 @@ export default defineEventHandler(async (event) => {
     if (user.role === 'user' && user.unitId) {
       conditions.push(eq(units.id, user.unitId))
     } else if (user.role === 'manager' && user.employeeId) {
-      conditions.push(eq(units.headOfUnit, user.employeeId))
+      // Find divisions managed by this user
+      const managedDivisions = await db
+        .select({ id: divisions.id })
+        .from(divisions)
+        .where(eq(divisions.managerId, user.employeeId))
+
+      const managedDivisionIds = managedDivisions.map(d => d.id)
+
+      const managerFilters = [eq(units.headOfUnit, user.employeeId)]
+      if (managedDivisionIds.length > 0) {
+        managerFilters.push(inArray(units.divisionId, managedDivisionIds))
+      }
+
+      conditions.push(or(...managerFilters)!)
     } else if (user.role === 'auditor' && user.siteId) {
       conditions.push(eq(units.siteId, user.siteId))
     }
@@ -34,6 +48,10 @@ export default defineEventHandler(async (event) => {
     // Additional query filters
     if (siteIdParam && siteIdParam !== '') {
       conditions.push(eq(units.siteId, siteIdParam))
+    }
+
+    if (divisionIdParam && divisionIdParam !== '') {
+      conditions.push(eq(units.divisionId, divisionIdParam))
     }
 
     if (unitIdParam && unitIdParam !== '') {

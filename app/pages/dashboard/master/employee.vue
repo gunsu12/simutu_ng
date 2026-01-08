@@ -306,7 +306,7 @@ const handleSubmit = async () => {
     }
   } catch (error: any) {
     console.error('Failed to save employee:', error)
-    alert(error?.data?.message || 'Failed to save employee')
+    alert(error?.data?.message || 'Gagal menyimpan karyawan')
   } finally {
     loading.value = false
   }
@@ -314,7 +314,7 @@ const handleSubmit = async () => {
 
 // Delete employee
 const handleDelete = async (id: string) => {
-  if (!confirm('Are you sure you want to delete this employee?')) return
+  if (!confirm('Apakah Anda yakin ingin menghapus karyawan ini?')) return
 
   loading.value = true
   try {
@@ -326,7 +326,7 @@ const handleDelete = async (id: string) => {
     }
   } catch (error: any) {
     console.error('Failed to delete employee:', error)
-    alert(error?.data?.message || 'Failed to delete employee')
+    alert(error?.data?.message || 'Gagal menghapus karyawan')
   } finally {
     loading.value = false
   }
@@ -352,12 +352,12 @@ onMounted(() => {
     <!-- Header -->
     <div class="flex justify-between items-center mb-6">
       <div>
-        <h1 class="text-2xl font-bold">Employee Management</h1>
-        <p class="text-base-content/70 text-sm mt-1">Manage employees</p>
+        <h1 class="text-2xl font-bold">Manajemen Karyawan</h1>
+        <p class="text-base-content/70 text-sm mt-1">Kelola karyawan</p>
       </div>
       <button @click="openCreateModal" class="btn btn-primary">
         <Plus :size="20" />
-        Add Employee
+        Tambah Karyawan
       </button>
     </div>
 
@@ -372,7 +372,7 @@ onMounted(() => {
           @change="handleFilterChange"
           class="select select-bordered w-full"
         >
-          <option value="">All Sites</option>
+          <option value="">Semua Site</option>
           <option v-for="site in sites" :key="site.id" :value="site.id">
             {{ site.name }}
           </option>
@@ -387,7 +387,7 @@ onMounted(() => {
           @change="handleFilterChange"
           class="select select-bordered w-full"
         >
-          <option value="">All Units</option>
+          <option value="">Semua Unit</option>
           <option v-for="unit in units" :key="unit.id" :value="unit.id">
             {{ unit.name }}
           </option>
@@ -395,7 +395,7 @@ onMounted(() => {
       </div>
       <div class="col-span-2">
         <label class="label">
-          <span class="label-text">Search</span>
+          <span class="label-text">Cari</span>
         </label>
         <div class="relative">
           <Search :size="20" class="absolute left-3 top-1/2 -translate-y-1/2 text-base-content/50" />
@@ -403,7 +403,7 @@ onMounted(() => {
             v-model="searchQuery"
             @input="handleSearch"
             type="text"
-            placeholder="Search by NIK, Name, Identity, Phone..."
+            placeholder="Cari berdasarkan NIK, Nama, KTP, Telepon..."
             class="input input-bordered w-full pl-10"
           />
         </div>
@@ -416,7 +416,7 @@ onMounted(() => {
         @click="() => { filterSiteId = ''; filterUnitId = ''; searchQuery = ''; fetchEmployees() }"
         class="btn btn-ghost btn-sm"
       >
-        Clear All Filters
+        Hapus Semua Filter
       </button>
     </div>
 
@@ -427,11 +427,11 @@ onMounted(() => {
           <table class="table">
             <thead>
               <tr>
-                <th>Employee</th>
+                <th>Karyawan</th>
                 <th>Site</th>
                 <th>Unit</th>
-                <th>Contact</th>
-                <th class="text-right">Actions</th>
+                <th>Kontak</th>
+                <th class="text-right">Aksi</th>
               </tr>
             </thead>
             <tbody>
@@ -441,7 +441,7 @@ onMounted(() => {
                 </td>
               </tr>
               <tr v-else-if="employees.length === 0">
-                <td colspan="5" class="text-center py-8 text-base-content/50">No employees found</td>
+                <td colspan="5" class="text-center py-8 text-base-content/50">Karyawan tidak ditemukan</td>
               </tr>
               <tr v-for="employee in employees" :key="employee.id" class="hover">
                 <td>
@@ -487,7 +487,7 @@ onMounted(() => {
     <!-- Pagination Area -->
     <div v-if="totalPages > 0" class="mt-6 flex flex-col md:flex-row justify-between items-center gap-4">
       <div class="text-sm text-base-content/60">
-        Showing {{ totalItems > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0 }} to {{ Math.min(currentPage * itemsPerPage, totalItems) }} of {{ totalItems }} entries
+        Menampilkan {{ totalItems > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0 }} sampai {{ Math.min(currentPage * itemsPerPage, totalItems) }} dari {{ totalItems }} entri
       </div>
       <div class="join" v-if="totalPages > 1">
         <button 
@@ -495,7 +495,7 @@ onMounted(() => {
           class="join-item btn btn-sm" 
           :disabled="currentPage === 1 || loading"
         >
-          Previous
+          Sebelumnya
         </button>
         <button 
           v-for="page in displayedPages" 
@@ -512,7 +512,7 @@ onMounted(() => {
           class="join-item btn btn-sm" 
           :disabled="currentPage === totalPages || loading"
         >
-          Next
+          Selanjutnya
         </button>
       </div>
     </div>
@@ -522,7 +522,7 @@ onMounted(() => {
       <div v-if="modalOpen" class="modal modal-open">
         <div class="modal-box max-w-2xl max-h-[90vh] overflow-y-auto">
           <h3 class="font-bold text-lg mb-4">
-            {{ isEditMode ? 'Edit Employee' : 'Add New Employee' }}
+            {{ isEditMode ? 'Ubah Karyawan' : 'Tambah Karyawan Baru' }}
           </h3>
 
           <form @submit.prevent="handleSubmit" class="space-y-4">
@@ -532,7 +532,7 @@ onMounted(() => {
                 <span class="label-text">Site <span class="text-error">*</span></span>
               </label>
               <select v-model="formData.siteId" class="select select-bordered" required>
-                <option value="">Select Site</option>
+                <option value="">Pilih Site</option>
                 <option v-for="site in sites" :key="site.id" :value="site.id">
                   {{ site.name }}
                 </option>
@@ -542,7 +542,7 @@ onMounted(() => {
             <!-- Picture Upload -->
             <div class="form-control">
               <label class="label">
-                <span class="label-text">Picture</span>
+                <span class="label-text">Foto</span>
               </label>
               <div class="flex gap-4 items-start">
                 <div class="avatar">
@@ -560,7 +560,7 @@ onMounted(() => {
                     @change="handleFileChange"
                     class="file-input file-input-bordered w-full"
                   />
-                  <p class="text-sm text-base-content/60 mt-2">Recommended: Square image, max 2MB</p>
+                  <p class="text-sm text-base-content/60 mt-2">Rekomendasi: Gambar persegi, maks 2MB</p>
                 </div>
               </div>
             </div>
@@ -573,7 +573,7 @@ onMounted(() => {
               <input
                 v-model="formData.nik"
                 type="text"
-                placeholder="EMP001"
+                placeholder="NIK Karyawan"
                 class="input input-bordered"
                 required
               />
@@ -582,12 +582,12 @@ onMounted(() => {
             <!-- Full Name -->
             <div class="form-control">
               <label class="label">
-                <span class="label-text">Full Name <span class="text-error">*</span></span>
+                <span class="label-text">Nama Lengkap <span class="text-error">*</span></span>
               </label>
               <input
                 v-model="formData.fullName"
                 type="text"
-                placeholder="John Doe"
+                placeholder="Nama Lengkap"
                 class="input input-bordered"
                 required
               />
@@ -604,7 +604,7 @@ onMounted(() => {
                     ref="unitInput"
                     v-model="unitSearchQuery"
                     type="text"
-                    :placeholder="formData.siteId ? 'Search unit...' : 'Select site first'"
+                    :placeholder="formData.siteId ? 'Cari unit...' : 'Pilih site terlebih dahulu'"
                     class="input input-bordered w-full"
                     :disabled="!formData.siteId"
                     @input="handleUnitSearch"
@@ -617,7 +617,7 @@ onMounted(() => {
                 
                 <ul v-if="formData.siteId" class="dropdown-content z-[2] menu p-2 shadow bg-base-100 rounded-box w-full max-h-60 overflow-y-auto mt-1 border border-base-content/10">
                   <li v-if="units.length === 0 && !unitLoading">
-                    <a class="text-base-content/50">No units found</a>
+                    <a class="text-base-content/50">Unit tidak ditemukan</a>
                   </li>
                   <li v-for="unit in units" :key="unit.id">
                     <button 
@@ -643,7 +643,7 @@ onMounted(() => {
                         :disabled="unitCurrentPage === 1 || unitLoading"
                         @click.stop="fetchUnits(unitSearchQuery, unitCurrentPage - 1)"
                       >«</button>
-                      <span class="text-xs">Page {{ unitCurrentPage }} of {{ unitTotalPages }}</span>
+                      <span class="text-xs">Halaman {{ unitCurrentPage }} dari {{ unitTotalPages }}</span>
                       <button 
                         type="button"
                         class="btn btn-xs" 
@@ -656,15 +656,15 @@ onMounted(() => {
               </div>
               <input type="hidden" v-model="formData.unitId" />
               <label class="label" v-if="formData.unitId">
-                <span class="label-text-alt text-success">Selected: {{ unitSearchQuery }}</span>
-                <button type="button" @click="() => { formData.unitId = ''; unitSearchQuery = ''; fetchUnits(); }" class="label-text-alt link link-error">Clear</button>
+                <span class="label-text-alt text-success">Terpilih: {{ unitSearchQuery }}</span>
+                <button type="button" @click="() => { formData.unitId = ''; unitSearchQuery = ''; fetchUnits(); }" class="label-text-alt link link-error">Hapus</button>
               </label>
             </div>
 
             <!-- Identity Number -->
             <div class="form-control">
               <label class="label">
-                <span class="label-text">Identity Number</span>
+                <span class="label-text">Nomor Identitas (KTP)</span>
               </label>
               <input
                 v-model="formData.identityNumber"
@@ -677,7 +677,7 @@ onMounted(() => {
             <!-- Phone Number -->
             <div class="form-control">
               <label class="label">
-                <span class="label-text">Phone Number</span>
+                <span class="label-text">Nomor Telepon</span>
               </label>
               <input
                 v-model="formData.phoneNumber"
@@ -690,11 +690,11 @@ onMounted(() => {
             <!-- Actions -->
             <div class="modal-action">
               <button type="button" @click="closeModal" class="btn btn-ghost" :disabled="loading">
-                Cancel
+                Batal
               </button>
               <button type="submit" class="btn btn-primary" :disabled="loading">
                 <span v-if="loading" class="loading loading-spinner loading-sm"></span>
-                {{ isEditMode ? 'Update' : 'Create' }}
+                {{ isEditMode ? 'Perbarui' : 'Simpan' }}
               </button>
             </div>
           </form>

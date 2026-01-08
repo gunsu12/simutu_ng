@@ -14,7 +14,7 @@ interface Indicator {
   formula: string | null
   numerator: string | null
   denominator: string | null
-  target: string | null
+  target: number | null
   targetUnit: string | null
   targetKeterangan: string | null
   targetIsZero: boolean
@@ -51,13 +51,14 @@ const fetchIndicator = async () => {
   try {
     const response = await $fetch<{ success: boolean; data: Indicator }>(`/api/indicators/${props.indicatorId}`)
     if (response.success) {
+      console.log(response.data)
       indicator.value = response.data
     } else {
-      error.value = 'Failed to load indicator'
+      error.value = 'Gagal memuat indikator'
     }
   } catch (err: any) {
     console.error('Error fetching indicator:', err)
-    error.value = err.data?.message || 'Failed to load indicator'
+    error.value = err.data?.message || 'Gagal memuat indikator'
   } finally {
     loading.value = false
   }
@@ -117,11 +118,11 @@ const formatTarget = (ind: Indicator) => {
         <div v-else-if="indicator" class="space-y-4">
           <div class="grid grid-cols-2 gap-4">
             <div>
-              <label class="text-sm text-base-content/60">Code</label>
+              <label class="text-sm text-base-content/60">Kode</label>
               <p class="font-mono font-medium">{{ indicator.code }}</p>
             </div>
             <div>
-              <label class="text-sm text-base-content/60">Category</label>
+              <label class="text-sm text-base-content/60">Kategori</label>
               <p class="font-medium">{{ indicator.categoryName }}</p>
             </div>
           </div>
@@ -158,13 +159,13 @@ const formatTarget = (ind: Indicator) => {
               <p>{{ indicator.denominator || '-' }}</p>
             </div>
             <div>
-              <label class="text-sm text-base-content/60">Calculation Formula</label>
+              <label class="text-sm text-base-content/60">Formula Perhitungan</label>
               <p class="font-mono">{{ indicator.targetCalculationFormula || '-' }}</p>
             </div>
           </div>
 
           <div v-if="indicator.formula">
-            <label class="text-sm text-base-content/60">Formula Description</label>
+            <label class="text-sm text-base-content/60">Deskripsi Formula</label>
             <p class="whitespace-pre-wrap">{{ indicator.formula }}</p>
           </div>
 
@@ -174,18 +175,18 @@ const formatTarget = (ind: Indicator) => {
               <p>{{ formatTarget(indicator) }}</p>
             </div>
             <div>
-              <label class="text-sm text-base-content/60">Entry Frequency</label>
+              <label class="text-sm text-base-content/60">Frekuensi Input</label>
               <p>
-                <span :class="['badge badge-sm', indicator.entryFrequency === 'daily' ? 'badge-info' : 'badge-secondary']">
-                  {{ indicator.entryFrequency === 'daily' ? 'Daily' : 'Monthly' }}
+                <span :class="['badge badge-sm font-medium px-3', indicator.entryFrequency === 'daily' ? 'badge-info' : 'badge-secondary']">
+                  {{ indicator.entryFrequency === 'daily' ? 'Harian' : 'Bulanan' }}
                 </span>
               </p>
             </div>
             <div>
               <label class="text-sm text-base-content/60">Status</label>
               <p>
-                <span :class="['badge badge-sm', indicator.isActive ? 'badge-success' : 'badge-error']">
-                  {{ indicator.isActive ? 'Active' : 'Inactive' }}
+                <span :class="['badge badge-sm font-medium px-3', indicator.isActive ? 'badge-success' : 'badge-error']">
+                  {{ indicator.isActive ? 'Aktif' : 'Tidak Aktif' }}
                 </span>
               </p>
             </div>
@@ -193,13 +194,13 @@ const formatTarget = (ind: Indicator) => {
 
           <div class="grid grid-cols-2 gap-4">
             <div>
-              <label class="text-sm text-base-content/60">Target is Zero</label>
-              <p>{{ indicator.targetIsZero ? 'Yes' : 'No' }}</p>
+              <label class="text-sm text-base-content/60">Target adalah Nol</label>
+              <p>{{ indicator.targetIsZero ? 'Ya' : 'Tidak' }}</p>
             </div>
             <div>
-              <label class="text-sm text-base-content/60">Document</label>
+              <label class="text-sm text-base-content/60">Dokumen</label>
               <a v-if="indicator.documentFile" :href="indicator.documentFile" target="_blank" class="link link-primary">
-                View Document
+                Lihat Dokumen
               </a>
               <p v-else>-</p>
             </div>
@@ -215,7 +216,7 @@ const formatTarget = (ind: Indicator) => {
         </div>
       </div>
       <form method="dialog" class="modal-backdrop">
-        <button type="button" @click="closeModal">close</button>
+        <button type="button" @click="closeModal">tutup</button>
       </form>
     </dialog>
   </Teleport>

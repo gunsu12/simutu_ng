@@ -1,6 +1,6 @@
 import { db } from '../../database'
 import { indicators, indicatorCategories } from '../../database/schema'
-import { asc, eq, and, isNull } from 'drizzle-orm'
+import { asc, eq, and, isNull, or, ilike, count, SQL } from 'drizzle-orm'
 import { generateFileUrl } from '../../utils/s3'
 
 /**
@@ -9,12 +9,12 @@ import { generateFileUrl } from '../../utils/s3'
  */
 function extractS3Key(storedValue: string | null): string | null {
   if (!storedValue) return null
-  
+
   // If it's already a key (no http), return as-is
   if (!storedValue.includes('http')) {
     return storedValue
   }
-  
+
   // Extract key from full URL (remove query string, get last 3 path segments)
   const urlParts = storedValue.split('?')[0]
   return urlParts.split('/').slice(-3).join('/')
@@ -23,7 +23,7 @@ function extractS3Key(storedValue: string | null): string | null {
 export default defineEventHandler(async (event) => {
   try {
     const user = event.context.user
-    
+
     if (!user) {
       setResponseStatus(event, 401)
       return {
@@ -35,11 +35,15 @@ export default defineEventHandler(async (event) => {
     const query = getQuery(event)
     const categoryId = query.categoryId as string | undefined
     const siteIdFilter = query.siteId as string | undefined
+    const search = query.search as string | undefined
+    const page = Number(query.page) || 1
+    const limit = Number(query.limit) || 10
+    const offset = (page - 1) * limit
 
-    const whereConditions: any[] = [
+    const whereConditions: SQL[] = [
       isNull(indicators.deletedAt) // Filter out soft-deleted records
     ]
-    
+
     // Admin can see all sites or filter by specific site
     // Regular users only see their own site
     if (user.role === 'admin') {
@@ -56,12 +60,32 @@ export default defineEventHandler(async (event) => {
       }
       whereConditions.push(eq(indicators.siteId, user.siteId))
     }
-    
+
     if (categoryId) {
       whereConditions.push(eq(indicators.indicatorCategoryId, categoryId))
     }
 
-    let queryBuilder = db
+    if (search) {
+      const searchPattern = `%${search.toLowerCase()}%`
+      whereConditions.push(
+        or(
+          ilike(indicators.code, searchPattern),
+          ilike(indicators.judul, searchPattern),
+          ilike(indicatorCategories.name, searchPattern)
+        ) as SQL
+      )
+    }
+
+    // Get total count for pagination
+    const [totalRes] = await db
+      .select({ value: count() })
+      .from(indicators)
+      .leftJoin(indicatorCategories, eq(indicators.indicatorCategoryId, indicatorCategories.id))
+      .where(and(...whereConditions))
+
+    const total = Number(totalRes.value) || 0
+
+    const result = await db
       .select({
         id: indicators.id,
         siteId: indicators.siteId,
@@ -89,12 +113,10 @@ export default defineEventHandler(async (event) => {
       })
       .from(indicators)
       .leftJoin(indicatorCategories, eq(indicators.indicatorCategoryId, indicatorCategories.id))
-
-    if (whereConditions.length > 0) {
-      queryBuilder = queryBuilder.where(and(...whereConditions))
-    }
-
-    const result = await queryBuilder.orderBy(asc(indicators.code))
+      .where(and(...whereConditions))
+      .orderBy(asc(indicators.code))
+      .limit(limit)
+      .offset(offset)
 
     // Generate presigned URLs for document files
     const indicatorsWithUrls = await Promise.all(
@@ -115,6 +137,12 @@ export default defineEventHandler(async (event) => {
     return {
       success: true,
       data: indicatorsWithUrls,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit)
+      }
     }
   } catch (error: any) {
     console.error('Error fetching indicators:', error)

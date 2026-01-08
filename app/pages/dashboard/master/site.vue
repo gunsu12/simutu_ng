@@ -178,7 +178,7 @@ async function handleSubmit() {
       })
       
       if (response.success) {
-        alert('Site berhasil diupdate!')
+        alert('Site berhasil diperbarui!')
       }
     }
     
@@ -306,7 +306,7 @@ onMounted(() => {
                       <span>{{ site.email }}</span>
                     </div>
                     <div v-if="site.phone" class="flex items-center gap-1">
-                      <span class="text-base-content/60">Phone:</span>
+                      <span class="text-base-content/60">Telp:</span>
                       <span>{{ site.phone }}</span>
                     </div>
                     <div v-if="site.website" class="flex items-center gap-1">
@@ -330,7 +330,7 @@ onMounted(() => {
                   <div class="flex items-center justify-center gap-2">
                     <button @click="openEditModal(site)" class="btn btn-sm btn-ghost gap-2">
                       <Edit class="w-4 h-4" />
-                      Edit
+                      Ubah
                     </button>
                     <button @click="handleDelete(site)" class="btn btn-sm btn-ghost btn-error gap-2">
                       <Trash2 class="w-4 h-4" />
@@ -350,7 +350,7 @@ onMounted(() => {
       <div v-if="modalOpen" class="modal modal-open">
         <div class="modal-box max-w-2xl max-h-[90vh] overflow-y-auto">
           <h3 class="font-bold text-lg mb-4 sticky top-0 bg-base-100 pt-2 pb-2 z-10">
-            {{ modalMode === 'create' ? 'Tambah Site Baru' : 'Edit Site' }}
+            {{ modalMode === 'create' ? 'Tambah Site Baru' : 'Ubah Site' }}
           </h3>
         
         <form @submit.prevent="handleSubmit" class="space-y-4">
@@ -501,7 +501,7 @@ onMounted(() => {
             </button>
             <button type="submit" class="btn btn-primary" :disabled="loading">
               <span v-if="loading" class="loading loading-spinner"></span>
-              <span v-else>{{ modalMode === 'create' ? 'Simpan' : 'Update' }}</span>
+              <span v-else>{{ modalMode === 'create' ? 'Simpan' : 'Perbarui' }}</span>
             </button>
           </div>
         </form>

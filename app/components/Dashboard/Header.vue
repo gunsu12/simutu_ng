@@ -34,7 +34,7 @@ const handleLogout = async () => {
             <Search class="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-base-content/50" />
             <input
               type="text"
-              placeholder="Search..."
+              placeholder="Cari..."
               class="input input-bordered input-sm w-64 pl-10 bg-base-200 focus:bg-base-100"
             />
           </div>
@@ -47,7 +47,7 @@ const handleLogout = async () => {
         <button 
           class="btn btn-ghost btn-primary btn-square"
           @click="toggleTheme"
-          :title="isDark ? 'Switch to light mode' : 'Switch to dark mode'"
+          :title="isDark ? 'Ganti ke mode terang' : 'Ganti ke mode gelap'"
         >
           <Sun v-if="isDark" class="w-5 h-5" />
           <Moon v-else class="w-5 h-5" />
@@ -68,12 +68,12 @@ const handleLogout = async () => {
             <li class="menu-title px-4 py-2">
               <span class="text-xs text-base-content/60">{{ user?.email }}</span>
             </li>
-            <li><NuxtLink to="/dashboard/settings/profile">Profile</NuxtLink></li>
+            <li><NuxtLink to="/dashboard/settings/profile">Profil</NuxtLink></li>
             <div class="divider my-1"></div>
             <li>
               <button @click="handleLogout" :disabled="loading" class="text-error">
                 <LogOut class="w-4 h-4" />
-                Logout
+                Keluar
               </button>
             </li>
           </ul>

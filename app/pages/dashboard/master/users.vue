@@ -136,6 +136,16 @@ const fetchSites = async () => {
   }
 }
 
+const getRoleLabel = (role: string) => {
+  switch (role) {
+    case 'admin': return 'Admin'
+    case 'manager': return 'Manajer'
+    case 'auditor': return 'Auditor'
+    case 'user': return 'Pengguna'
+    default: return role
+  }
+}
+
 // Fetch employees
 const fetchEmployees = async (search = '', page = 1) => {
   employeeLoading.value = true
@@ -256,7 +266,7 @@ const handleSubmit = async () => {
     }
   } catch (error: any) {
     console.error('Failed to save user:', error)
-    alert(error?.data?.message || 'Failed to save user')
+    alert(error?.data?.message || 'Gagal menyimpan pengguna')
   } finally {
     loading.value = false
   }
@@ -264,7 +274,7 @@ const handleSubmit = async () => {
 
 // Delete user
 const handleDelete = async (id: string) => {
-  if (!confirm('Are you sure you want to delete this user?')) return
+  if (!confirm('Apakah Anda yakin ingin menghapus pengguna ini?')) return
 
   loading.value = true
   try {
@@ -276,7 +286,7 @@ const handleDelete = async (id: string) => {
     }
   } catch (error: any) {
     console.error('Failed to delete user:', error)
-    alert(error?.data?.message || 'Failed to delete user')
+    alert(error?.data?.message || 'Gagal menghapus pengguna')
   } finally {
     loading.value = false
   }
@@ -295,12 +305,12 @@ onMounted(() => {
     <!-- Header -->
     <div class="flex justify-between items-center mb-6">
       <div>
-        <h1 class="text-2xl font-bold">User Management</h1>
-        <p class="text-base-content/70 text-sm mt-1">Manage system users</p>
+        <h1 class="text-2xl font-bold">Manajemen Pengguna</h1>
+        <p class="text-base-content/70 text-sm mt-1">Kelola pengguna sistem</p>
       </div>
       <button @click="openCreateModal" class="btn btn-primary">
         <Plus :size="20" />
-        Add User
+        Tambah Pengguna
       </button>
     </div>
 
@@ -312,7 +322,7 @@ onMounted(() => {
           v-model="searchQuery"
           @input="handleSearch"
           type="text"
-          placeholder="Search users..."
+          placeholder="Cari pengguna..."
           class="input input-bordered w-full pl-10"
         />
       </div>
@@ -325,13 +335,13 @@ onMounted(() => {
           <table class="table">
             <thead>
               <tr>
-                <th>Name</th>
+                <th>Nama</th>
                 <th>Username</th>
                 <th>Email</th>
                 <th>Role</th>
-                <th>Employee</th>
+                <th>Karyawan</th>
                 <th>Site</th>
-                <th class="text-right">Actions</th>
+                <th class="text-right">Aksi</th>
               </tr>
             </thead>
             <tbody>
@@ -341,7 +351,7 @@ onMounted(() => {
                 </td>
               </tr>
               <tr v-else-if="users.length === 0">
-                <td colspan="7" class="text-center py-8 text-base-content/50">No users found</td>
+                <td colspan="7" class="text-center py-8 text-base-content/50">Pengguna tidak ditemukan</td>
               </tr>
               <tr v-for="user in users" :key="user.id" class="hover">
                 <td class="font-medium">{{ user.name }}</td>
@@ -354,7 +364,7 @@ onMounted(() => {
                     'badge-accent': user.role === 'auditor',
                     'badge-ghost': user.role === 'user',
                   }">
-                    {{ user.role }}
+                    {{ getRoleLabel(user.role) }}
                   </span>
                 </td>
                 <td>{{ user.employeeName || '-' }}</td>
@@ -379,7 +389,7 @@ onMounted(() => {
     <!-- Pagination Area -->
     <div v-if="totalPages > 0" class="mt-6 flex flex-col md:flex-row justify-between items-center gap-4">
       <div class="text-sm text-base-content/60">
-        Showing {{ totalItems > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0 }} to {{ Math.min(currentPage * itemsPerPage, totalItems) }} of {{ totalItems }} entries
+        Menampilkan {{ totalItems > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0 }} sampai {{ Math.min(currentPage * itemsPerPage, totalItems) }} dari {{ totalItems }} entri
       </div>
       <div class="join" v-if="totalPages > 1">
         <button 
@@ -387,7 +397,7 @@ onMounted(() => {
           class="join-item btn btn-sm" 
           :disabled="currentPage === 1 || loading"
         >
-          Previous
+          Sebelumnya
         </button>
         <button 
           v-for="page in displayedPages" 
@@ -404,7 +414,7 @@ onMounted(() => {
           class="join-item btn btn-sm" 
           :disabled="currentPage === totalPages || loading"
         >
-          Next
+          Selanjutnya
         </button>
       </div>
     </div>
@@ -414,19 +424,19 @@ onMounted(() => {
       <div v-if="modalOpen" class="modal modal-open">
         <div class="modal-box max-w-2xl max-h-[90vh] overflow-y-auto">
           <h3 class="font-bold text-lg mb-4">
-            {{ isEditMode ? 'Edit User' : 'Add New User' }}
+            {{ isEditMode ? 'Ubah Pengguna' : 'Tambah Pengguna Baru' }}
           </h3>
 
           <form @submit.prevent="handleSubmit" class="space-y-4">
             <!-- Name -->
             <div class="form-control">
               <label class="label">
-                <span class="label-text">Name <span class="text-error">*</span></span>
+                <span class="label-text">Nama <span class="text-error">*</span></span>
               </label>
               <input
                 v-model="formData.name"
                 type="text"
-                placeholder="John Doe"
+                placeholder="Nama Lengkap"
                 class="input input-bordered"
                 required
               />
@@ -440,7 +450,7 @@ onMounted(() => {
               <input
                 v-model="formData.username"
                 type="text"
-                placeholder="johndoe"
+                placeholder="username"
                 class="input input-bordered"
                 required
               />
@@ -454,7 +464,7 @@ onMounted(() => {
               <input
                 v-model="formData.email"
                 type="email"
-                placeholder="john@example.com"
+                placeholder="email@contoh.com"
                 class="input input-bordered"
                 required
               />
@@ -473,7 +483,7 @@ onMounted(() => {
                 :required="!isEditMode"
               />
               <label v-if="isEditMode" class="label">
-                <span class="label-text-alt">Leave empty to keep current password</span>
+                <span class="label-text-alt">Kosongkan jika tidak ingin mengubah password</span>
               </label>
             </div>
 
@@ -493,7 +503,7 @@ onMounted(() => {
             <!-- Employee -->
             <div class="form-control">
               <label class="label">
-                <span class="label-text">Employee</span>
+                <span class="label-text">Karyawan</span>
               </label>
               <div class="dropdown w-full">
                 <div class="relative">
@@ -501,7 +511,7 @@ onMounted(() => {
                     ref="employeeInput"
                     v-model="employeeSearchQuery"
                     type="text"
-                    placeholder="Search employee..."
+                    placeholder="Cari karyawan..."
                     class="input input-bordered w-full"
                     @input="handleEmployeeSearch"
                     @focus="() => { if (!employeeSearchQuery) fetchEmployees() }"
@@ -513,7 +523,7 @@ onMounted(() => {
                 
                 <ul class="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-full max-h-60 overflow-y-auto mt-1 border border-base-content/10">
                   <li v-if="employees.length === 0 && !employeeLoading">
-                    <a class="text-base-content/50">No employees found</a>
+                    <a class="text-base-content/50">Karyawan tidak ditemukan</a>
                   </li>
                   <li v-for="employee in employees" :key="employee.id">
                     <button 
@@ -539,7 +549,7 @@ onMounted(() => {
                         :disabled="employeeCurrentPage === 1 || employeeLoading"
                         @click.stop="fetchEmployees(employeeSearchQuery, employeeCurrentPage - 1)"
                       >«</button>
-                      <span class="text-xs">Page {{ employeeCurrentPage }} of {{ employeeTotalPages }}</span>
+                      <span class="text-xs">Halaman {{ employeeCurrentPage }} dari {{ employeeTotalPages }}</span>
                       <button 
                         type="button"
                         class="btn btn-xs" 
@@ -552,8 +562,8 @@ onMounted(() => {
               </div>
               <input type="hidden" v-model="formData.employeeId" />
               <label class="label" v-if="formData.employeeId">
-                <span class="label-text-alt text-success">Selected: {{ employeeSearchQuery }}</span>
-                <button type="button" @click="() => { formData.employeeId = ''; employeeSearchQuery = ''; fetchEmployees(); }" class="label-text-alt link link-error">Clear</button>
+                <span class="label-text-alt text-success">Terpilih: {{ employeeSearchQuery }}</span>
+                <button type="button" @click="() => { formData.employeeId = ''; employeeSearchQuery = ''; fetchEmployees(); }" class="label-text-alt link link-error">Hapus</button>
               </label>
             </div>
 
@@ -563,7 +573,7 @@ onMounted(() => {
                 <span class="label-text">Site</span>
               </label>
               <select v-model="formData.siteId" class="select select-bordered">
-                <option value="">Select Site</option>
+                <option value="">Pilih Site</option>
                 <option v-for="site in sites" :key="site.id" :value="site.id">
                   {{ site.name }}
                 </option>
@@ -572,9 +582,9 @@ onMounted(() => {
 
             <!-- Modal actions -->
             <div class="modal-action">
-              <button type="button" @click="closeModal" class="btn">Cancel</button>
+              <button type="button" @click="closeModal" class="btn">Batal</button>
               <button type="submit" class="btn btn-primary">
-                {{ isEditMode ? 'Update' : 'Create' }}
+                {{ isEditMode ? 'Perbarui' : 'Simpan' }}
               </button>
             </div>
           </form>

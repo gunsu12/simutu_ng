@@ -10,7 +10,7 @@ export default defineEventHandler(async (event) => {
     if (!indicatorId) {
       return {
         success: false,
-        message: 'Indicator ID is required',
+        message: 'ID Indikator wajib diisi',
       }
     }
 
@@ -36,7 +36,7 @@ export default defineEventHandler(async (event) => {
     console.error('Get indicator units error:', error)
     return {
       success: false,
-      message: error.message || 'Failed to fetch indicator units',
+      message: error.message || 'Gagal memuat daftar unit indikator',
     }
   }
 })

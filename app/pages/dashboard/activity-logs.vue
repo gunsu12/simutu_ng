@@ -30,8 +30,12 @@ interface Stats {
 const searchQuery = ref('')
 const actionFilter = ref('')
 const moduleFilter = ref('')
-const startDate = ref('')
-const endDate = ref('')
+const now = new Date()
+const lastWeek = new Date(now)
+lastWeek.setDate(now.getDate() - 6)
+
+const startDate = ref(lastWeek.toISOString().split('T')[0])
+const endDate = ref(now.toISOString().split('T')[0])
 
 const page = ref(1)
 const limit = ref(25)
@@ -147,8 +151,14 @@ const resetFilters = () => {
   searchQuery.value = ''
   actionFilter.value = ''
   moduleFilter.value = ''
-  startDate.value = ''
-  endDate.value = ''
+  
+  const now = new Date()
+  const lastWeek = new Date(now)
+  lastWeek.setDate(now.getDate() - 6)
+  
+  startDate.value = lastWeek.toISOString().split('T')[0]
+  endDate.value = now.toISOString().split('T')[0]
+  
   page.value = 1
   fetchLogs()
 }

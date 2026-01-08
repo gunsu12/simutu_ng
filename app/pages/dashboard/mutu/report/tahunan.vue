@@ -2,7 +2,8 @@
 import { Calendar, Download, Filter, Printer } from 'lucide-vue-next'
 
 definePageMeta({
-  layout: 'dashboard'
+  layout: 'dashboard',
+  middleware: 'auth'
 })
 
 interface MonthlyResult {
@@ -44,7 +45,7 @@ const selectedFrequency = ref('monthly')
 const categories = ref<Category[]>([])
 const unitGroups = ref<UnitGroup[]>([])
 
-const months = ['Jan', 'Feb', 'Mart', 'Aprl', 'Mei', 'Jun', 'Jul', 'Agst', 'Sept', 'Okt', 'Nov', 'Des']
+const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agt', 'Sep', 'Okt', 'Nov', 'Des']
 
 // Years for dropdown (current year - 5 to current year + 1)
 const years = computed(() => {

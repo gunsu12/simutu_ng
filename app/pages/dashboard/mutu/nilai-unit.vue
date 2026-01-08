@@ -1,27 +1,5 @@
 <script setup lang="ts">
-import { Plus, Search, Edit, Trash2, Calendar, Eye, Book } from 'lucide-vue-next'
-
-// Transition styles for notifications
-const notificationTransition = `
-  .notification-enter-active,
-  .notification-leave-active {
-    transition: all 0.3s ease;
-  }
-  
-  .notification-enter-from {
-    opacity: 0;
-    transform: translateX(30px);
-  }
-  
-  .notification-leave-to {
-    opacity: 0;
-    transform: translateX(30px);
-  }
-  
-  .notification-move {
-    transition: transform 0.3s ease;
-  }
-`
+import { Plus, Search, Edit, Trash2, Calendar, Eye, Book, FileText } from 'lucide-vue-next'
 
 definePageMeta({
   layout: 'dashboard',
@@ -118,8 +96,12 @@ const modalMode = ref<'create' | 'edit'>('create')
 const selectedEntry = ref<IndicatorEntry | null>(null)
 
 // Filter state
-const filterStartDate = ref(new Date().toISOString().split('T')[0])
-const filterEndDate = ref(new Date().toISOString().split('T')[0])
+const today = new Date()
+const lastWeek = new Date(today)
+lastWeek.setDate(today.getDate() - 6)
+
+const filterStartDate = ref(lastWeek.toISOString().split('T')[0])
+const filterEndDate = ref(today.toISOString().split('T')[0])
 const filterFrequency = ref<'daily' | 'monthly' | ''>('')
 const filterStatus = ref<string>('')
 const filterUnitId = ref('')
@@ -297,7 +279,7 @@ function openEditModal(entry: IndicatorEntry) {
       numeratorDesc: item.indicator?.numerator || null,
       denominatorDesc: item.indicator?.denominator || null,
       targetCalculationFormula: item.indicator?.targetCalculationFormula || null,
-      showDetails: false
+      showDetails: true
     })) || []
   }
   modalOpen.value = true
@@ -326,8 +308,12 @@ function toggleIndicatorDetails(index: number) {
 }
 
 function resetFilters() {
-  filterStartDate.value = new Date().toISOString().split('T')[0]
-  filterEndDate.value = new Date().toISOString().split('T')[0]
+  const today = new Date()
+  const lastWeek = new Date(today)
+  lastWeek.setDate(today.getDate() - 6)
+
+  filterStartDate.value = lastWeek.toISOString().split('T')[0]
+  filterEndDate.value = today.toISOString().split('T')[0]
   filterFrequency.value = ''
   filterStatus.value = ''
   if (isAdmin.value) {
@@ -436,7 +422,7 @@ async function saveEntry() {
       if (response.success) {
         await fetchEntries()
         closeModal()
-        showNotification('Entry created successfully', 'success')
+        showNotification('Entri berhasil dibuat', 'success')
       }
     } else if (selectedEntry.value) {
       const response = await $fetch(`/api/indicator-entries/${selectedEntry.value.id}`, {
@@ -446,13 +432,13 @@ async function saveEntry() {
       if (response.success) {
         await fetchEntries()
         closeModal()
-        showNotification('Entry updated successfully', 'success')
+        showNotification('Entri berhasil diperbarui', 'success')
       }
     }
   } catch (error: any) {
     console.error('Failed to save entry:', error)
     
-    let message = 'Failed to save entry'
+    let message = 'Gagal menyimpan entri'
     if (error.data?.message) {
       message = error.data.message
     } else if (error.message) {
@@ -462,7 +448,7 @@ async function saveEntry() {
     if (error.status === 400) {
       showNotification(message, 'warning')
     } else if (error.status === 401) {
-      showNotification('Unauthorized. Please log in again.', 'error')
+      showNotification('Tidak terotorisasi. Silakan login kembali.', 'error')
     } else {
       showNotification(message, 'error')
     }
@@ -472,7 +458,7 @@ async function saveEntry() {
 }
 
 async function deleteEntry(id: string) {
-  if (!confirm('Are you sure you want to delete this entry?')) return
+  if (!confirm('Apakah Anda yakin ingin menghapus entri ini?')) return
 
   loading.value = true
   try {
@@ -481,11 +467,11 @@ async function deleteEntry(id: string) {
     })
     if (response.success) {
       await fetchEntries()
-      showNotification('Entry deleted successfully', 'success')
+      showNotification('Entri berhasil dihapus', 'success')
     }
   } catch (error: any) {
     console.error('Failed to delete entry:', error)
-    const message = error.data?.message || error.message || 'Failed to delete entry'
+    const message = error.data?.message || error.message || 'Gagal menghapus entri'
     showNotification(message, 'error')
   } finally {
     loading.value = false
@@ -499,6 +485,16 @@ function getStatusBadge(status: string) {
     case 'pending': return 'badge-warning'
     case 'finish': return 'badge-success'
     default: return 'badge-ghost'
+  }
+}
+
+function getStatusLabel(status: string) {
+  switch (status) {
+    case 'proposed': return 'Diajukan'
+    case 'checked': return 'Terverifikasi'
+    case 'pending': return 'Tertunda'
+    case 'finish': return 'Selesai'
+    default: return status
   }
 }
 
@@ -517,7 +513,7 @@ onMounted(async () => {
 async function fetchAvailableIndicators(frequency: 'daily' | 'monthly') {
   if (!unitId.value) {
     console.error('No unit ID found for user:', user.value)
-    showNotification('Unable to load indicators: No unit assigned to your account', 'error')
+    showNotification('Tidak dapat memuat indikator: Tidak ada unit yang ditugaskan ke akun Anda', 'error')
     return
   }
 
@@ -546,7 +542,7 @@ async function fetchAvailableIndicators(frequency: 'daily' | 'monthly') {
         numeratorDesc: indicator.numerator || null,
         denominatorDesc: indicator.denominator || null,
         targetCalculationFormula: indicator.targetCalculationFormula || null,
-        showDetails: false
+        showDetails: true
       }))
       
       if (response.data.length === 0) {
@@ -555,7 +551,7 @@ async function fetchAvailableIndicators(frequency: 'daily' | 'monthly') {
     }
   } catch (error: any) {
     console.error('Failed to fetch indicators:', error)
-    const message = error.data?.message || 'Failed to load indicators. Please try again.'
+    const message = error.data?.message || 'Gagal memuat indikator. Silakan coba lagi.'
     showNotification(message, 'error')
   } finally {
     loadingIndicators.value = false
@@ -574,27 +570,27 @@ async function fetchAvailableIndicators(frequency: 'daily' | 'monthly') {
     <!-- Header -->
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
       <div>
-        <h1 class="text-2xl font-bold text-base-content">Nilai Mutu Unit</h1>
-        <p class="text-base-content/60 mt-1">Manage indicator entries for your unit</p>
+        <h1 class="text-2xl font-bold text-base-content">Entri Nilai Mutu Indikator</h1>
+        <p class="text-base-content/60 mt-1">Kelola entri nilai mutu indikator untuk unit Anda</p>
       </div>
       <button
         @click="openCreateModal"
         class="btn btn-primary gap-2"
       >
         <Plus class="w-4 h-4" />
-        Add Entry
+        Tambah Entri
       </button>
     </div>
 
     <!-- Filters -->
     <div class="card bg-base-100 border border-base-300 shadow-sm">
       <div class="card-body p-4">
-        <h3 class="font-semibold text-base-content mb-3">Filters</h3>
+        <h3 class="font-semibold text-base-content mb-3">Filter</h3>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
           <!-- Start Date -->
           <div class="form-control">
             <label class="label">
-              <span class="label-text text-sm">Start Date</span>
+              <span class="label-text text-sm">Tanggal Mulai</span>
             </label>
             <input
               v-model="filterStartDate"
@@ -607,7 +603,7 @@ async function fetchAvailableIndicators(frequency: 'daily' | 'monthly') {
           <!-- End Date -->
           <div class="form-control">
             <label class="label">
-              <span class="label-text text-sm">End Date</span>
+              <span class="label-text text-sm">Tanggal Selesai</span>
             </label>
             <input
               v-model="filterEndDate"
@@ -620,16 +616,16 @@ async function fetchAvailableIndicators(frequency: 'daily' | 'monthly') {
           <!-- Frequency -->
           <div class="form-control">
             <label class="label">
-              <span class="label-text text-sm">Frequency</span>
+              <span class="label-text text-sm">Frekuensi</span>
             </label>
             <select
               v-model="filterFrequency"
               @change="fetchEntries"
               class="select select-bordered select-sm"
             >
-              <option value="">All Frequencies</option>
-              <option value="daily">Daily</option>
-              <option value="monthly">Monthly</option>
+              <option value="">Semua Frekuensi</option>
+              <option value="daily">Harian</option>
+              <option value="monthly">Bulanan</option>
             </select>
           </div>
 
@@ -643,31 +639,31 @@ async function fetchAvailableIndicators(frequency: 'daily' | 'monthly') {
               @change="fetchEntries"
               class="select select-bordered select-sm"
             >
-              <option value="">All Status</option>
-              <option value="proposed">Proposed</option>
-              <option value="checked">Checked</option>
-              <option value="pending">Pending</option>
-              <option value="finish">Finish</option>
+              <option value="">Semua Status</option>
+              <option value="proposed">Diajukan</option>
+              <option value="checked">Terverifikasi</option>
+              <option value="pending">Tertunda</option>
+              <option value="finish">Selesai</option>
             </select>
           </div>
 
           <!-- Reset Button -->
           <div :class="['form-control', isAdmin ? 'lg:col-span-1' : 'flex justify-end']">
             <label class="label">
-              <span class="label-text text-sm invisible">Action</span>
+              <span class="label-text text-sm invisible">Aksi</span>
             </label>
             <button
               @click="resetFilters"
               class="btn btn-outline btn-sm"
             >
-              Reset Filters
+              Hapus Filter
             </button>
           </div>
           
           <!-- Unit Filter (Admin only) -->
           <div class="form-control lg:col-span-2" v-if="isAdmin">
             <label class="label">
-              <span class="label-text text-sm font-medium">Unit Filter</span>
+              <span class="label-text text-sm font-medium">Filter Unit</span>
             </label>
             <div class="dropdown w-full">
               <div class="relative">
@@ -690,7 +686,7 @@ async function fetchAvailableIndicators(frequency: 'daily' | 'monthly') {
               
               <ul class="dropdown-content z-[20] menu p-2 shadow bg-base-100 rounded-box w-full max-h-60 overflow-y-auto mt-1 border border-base-content/10">
                 <li v-if="units.length === 0 && !unitLoading">
-                  <a class="text-base-content/50">No units found</a>
+                  <a class="text-base-content/50">Unit tidak ditemukan</a>
                 </li>
                 <li v-for="unit in units" :key="unit.id">
                   <button 
@@ -717,7 +713,7 @@ async function fetchAvailableIndicators(frequency: 'daily' | 'monthly') {
                       :disabled="unitCurrentPage === 1 || unitLoading"
                       @click.stop="fetchUnits(unitSearchQuery, unitCurrentPage - 1)"
                     >«</button>
-                    <span class="text-[10px]">Page {{ unitCurrentPage }} of {{ unitTotalPages }}</span>
+                    <span class="text-[10px]">Halaman {{ unitCurrentPage }} dari {{ unitTotalPages }}</span>
                     <button 
                       type="button"
                       class="btn btn-xs" 
@@ -731,27 +727,12 @@ async function fetchAvailableIndicators(frequency: 'daily' | 'monthly') {
           </div>
           <div v-else-if="unitId" class="form-control lg:col-span-2">
             <label class="label">
-              <span class="label-text text-sm font-medium">Your Unit</span>
+              <span class="label-text text-sm font-medium">Unit Anda</span>
             </label>
             <div class="p-2 bg-base-200 rounded text-sm font-semibold truncate">
               {{ unitNameSelect || 'Loading...' }}
             </div>
           </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Search -->
-    <div class="card bg-base-100 border border-base-300 shadow-sm">
-      <div class="card-body p-4">
-        <div class="relative">
-          <Search class="absolute left-3 top-1/2 transform -translate-y-1/2 text-base-content/40 w-5 h-5" />
-          <input
-            v-model="searchQuery"
-            type="text"
-            placeholder="Search entries..."
-            class="input input-bordered w-full pl-10"
-          />
         </div>
       </div>
     </div>
@@ -763,12 +744,12 @@ async function fetchAvailableIndicators(frequency: 'daily' | 'monthly') {
           <table class="table">
             <thead class="bg-base-200/50">
               <tr>
-                <th>Entry Code</th>
-                <th>Entry Date</th>
-                <th>Frequency</th>
+                <th>Kode Entri</th>
+                <th>Tanggal Entri</th>
+                <th>Frekuensi</th>
                 <th>Status</th>
-                <th>Items</th>
-                <th class="text-right">Actions</th>
+                <th>Item</th>
+                <th class="text-right">Aksi</th>
               </tr>
             </thead>
             <tbody>
@@ -776,7 +757,18 @@ async function fetchAvailableIndicators(frequency: 'daily' | 'monthly') {
                 <td colspan="6" class="text-center">Loading...</td>
               </tr>
               <tr v-else-if="filteredEntries.length === 0">
-                <td colspan="6" class="text-center">No entries found</td>
+                <td colspan="6" class="p-12">
+                  <div class="flex flex-col items-center justify-center text-center">
+                    <FileText class="w-16 h-16 text-base-content/20 mb-4" />
+                    <p class="text-base-content/60">
+                      {{ (searchQuery || filterFrequency || filterStatus || (isAdmin && filterUnitId)) ? 'Entri tidak ditemukan' : 'Belum ada entri' }}
+                    </p>
+                    <button v-if="!(searchQuery || filterFrequency || filterStatus || (isAdmin && filterUnitId))" @click="openCreateModal" class="btn btn-primary btn-sm mt-4">
+                      <Plus class="w-4 h-4" />
+                      Buat Entri Pertama
+                    </button>
+                  </div>
+                </td>
               </tr>
               <tr v-else v-for="entry in filteredEntries" :key="entry.id">
                 <td class="font-medium">{{ entry.entryCode }}</td>
@@ -788,12 +780,12 @@ async function fetchAvailableIndicators(frequency: 'daily' | 'monthly') {
                 </td>
                 <td>
                   <span class="badge badge-primary badge-sm">
-                    {{ entry.entryFrequency }}
+                    {{ entry.entryFrequency === 'daily' ? 'Harian' : 'Bulanan' }}
                   </span>
                 </td>
                 <td>
                   <span :class="['badge badge-sm', getStatusBadge(entry.status)]">
-                    {{ entry.status }}
+                    {{ getStatusLabel(entry.status) }}
                   </span>
                 </td>
                 <td>
@@ -802,7 +794,7 @@ async function fetchAvailableIndicators(frequency: 'daily' | 'monthly') {
                     class="btn btn-sm btn-outline"
                     type="button"
                   >
-                    {{ entry.items?.length || 0 }} indicators
+                    {{ entry.items?.length || 0 }} indikator
                   </button>
                 </td>
                 <td class="text-right">
@@ -832,14 +824,14 @@ async function fetchAvailableIndicators(frequency: 'daily' | 'monthly') {
       <dialog :open="modalOpen" class="modal modal-open" v-if="modalOpen">
         <div class="modal-box max-w-4xl">
           <h2 class="text-xl font-bold mb-4">
-            {{ modalMode === 'create' ? 'Add New Entry' : 'Edit Entry' }}
+            {{ modalMode === 'create' ? 'Tambah Entri Baru' : 'Ubah Entri' }}
           </h2>
 
           <form @submit.prevent="saveEntry" class="space-y-4">
             <!-- Entry Date -->
             <div class="form-control">
               <label class="label">
-                <span class="label-text font-medium">Entry Date *</span>
+                <span class="label-text font-medium">Tanggal Entri *</span>
               </label>
               <input
                 v-model="formData.entryDate"
@@ -852,7 +844,7 @@ async function fetchAvailableIndicators(frequency: 'daily' | 'monthly') {
             <!-- Entry Frequency -->
             <div class="form-control">
               <label class="label">
-                <span class="label-text font-medium">Entry Frequency *</span>
+                <span class="label-text font-medium">Frekuensi Entri *</span>
               </label>
               <select
                 v-model="formData.entryFrequency"
@@ -861,15 +853,15 @@ async function fetchAvailableIndicators(frequency: 'daily' | 'monthly') {
                 class="select select-bordered"
               >
                 <option value="">- Pilih -</option>
-                <option value="daily">Daily</option>
-                <option value="monthly">Monthly</option>
+                <option value="daily">Harian</option>
+                <option value="monthly">Bulanan</option>
               </select>
             </div>
 
             <!-- Notes -->
             <div class="form-control">
               <label class="label">
-                <span class="label-text font-medium">Notes</span>
+                <span class="label-text font-medium">Catatan</span>
               </label>
               <textarea
                 v-model="formData.notes"
@@ -881,10 +873,10 @@ async function fetchAvailableIndicators(frequency: 'daily' | 'monthly') {
             <!-- Indicators -->
             <div v-if="loadingIndicators" class="text-center py-4">
               <span class="loading loading-spinner loading-md"></span>
-              <p class="text-base-content/60 mt-2">Loading indicators...</p>
+              <p class="text-base-content/60 mt-2">Memuat indikator...</p>
             </div>
             <div v-else-if="formData.items.length > 0">
-              <h3 class="text-lg font-semibold mb-3">Indicators</h3>
+              <h3 class="text-lg font-semibold mb-3">Indikator</h3>
               <div class="space-y-4">
                 <div
                   v-for="(item, index) in formData.items"
@@ -897,9 +889,9 @@ async function fetchAvailableIndicators(frequency: 'daily' | 'monthly') {
                         <h4 class="font-medium mb-2">
                           {{ item.indicatorCode }} - {{ item.indicatorName }}
                         </h4>
-                        <details class="cursor-pointer" @toggle="item.showDetails = !item.showDetails">
+                        <details class="cursor-pointer" open @toggle="item.showDetails = !item.showDetails">
                           <summary class="text-sm text-base-content/80 hover:text-base-content flex items-center">
-                            <Book class="w-4 h-4 mr-2" /> View indicator details
+                            <Book class="w-4 h-4 mr-2" /> Lihat detail indikator
                           </summary>
                           <div class="mt-3 space-y-2 text-sm">
                             <div v-if="item.numeratorDesc" class="divider my-2">Numerator</div>
@@ -917,7 +909,7 @@ async function fetchAvailableIndicators(frequency: 'daily' | 'monthly') {
                         type="button"
                         @click="openDetailModal(item.indicatorId)"
                         class="btn btn-ghost btn-sm btn-square"
-                        title="View full detail"
+                        title="Lihat detail lengkap"
                       >
                         <Eye class="w-4 h-4" />
                       </button>
@@ -932,7 +924,7 @@ async function fetchAvailableIndicators(frequency: 'daily' | 'monthly') {
                           v-model.number="item.numeratorValue"
                           type="number"
                           step="any"
-                          placeholder="Enter numerator value"
+                          placeholder="Nilai Numerator"
                           class="input input-bordered input-sm"
                         />
                       </div>
@@ -944,7 +936,7 @@ async function fetchAvailableIndicators(frequency: 'daily' | 'monthly') {
                           v-model.number="item.denominatorValue"
                           type="number"
                           step="any"
-                          placeholder="Enter denominator value"
+                          placeholder="Nilai Denominator"
                           class="input input-bordered input-sm"
                         />
                       </div>
@@ -956,19 +948,19 @@ async function fetchAvailableIndicators(frequency: 'daily' | 'monthly') {
                           v-model.number="item.skor"
                           type="number"
                           step="any"
-                          placeholder="Enter score value"
+                          placeholder="Nilai Skor"
                           class="input input-bordered input-sm"
                         />
                       </div>
                     </div>
                     <div class="form-control mt-3">
                       <label class="label">
-                        <span class="label-text text-xs">Notes</span>
+                        <span class="label-text text-xs">Catatan</span>
                       </label>
                       <input
                         v-model="item.notes"
                         type="text"
-                        placeholder="Add notes (optional)"
+                        placeholder="Tambah catatan (opsional)"
                         class="input input-bordered input-sm"
                       />
                     </div>
@@ -981,11 +973,11 @@ async function fetchAvailableIndicators(frequency: 'daily' | 'monthly') {
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
               </svg>
               <div>
-                <h3 class="font-bold">No Indicators Found!</h3>
+                <h3 class="font-bold">Indikator tidak ditemukan!</h3>
                 <div class="text-sm">
-                  There are no {{ formData.entryFrequency }} indicators assigned to your unit. 
-                  Please contact your administrator to assign indicators to your unit in the 
-                  <strong>Mutu → Master → Indicators</strong> page.
+                  Tidak ada indikator {{ formData.entryFrequency === 'daily' ? 'harian' : 'bulanan' }} yang ditugaskan ke unit Anda.
+                  Silakan hubungi administrator untuk menugaskan indikator ke unit Anda di halaman 
+                  <strong>Mutu → Master → Indikator</strong>.
                 </div>
               </div>
             </div>
@@ -993,7 +985,7 @@ async function fetchAvailableIndicators(frequency: 'daily' | 'monthly') {
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
               </svg>
-              <span>Select entry frequency to load indicators</span>
+              <span>Pilih frekuensi entri untuk memuat indikator</span>
             </div>
 
             <!-- Actions -->
@@ -1003,7 +995,7 @@ async function fetchAvailableIndicators(frequency: 'daily' | 'monthly') {
                 @click="closeModal"
                 class="btn btn-ghost"
               >
-                Cancel
+                Batal
               </button>
               <button
                 type="submit"
@@ -1011,13 +1003,13 @@ async function fetchAvailableIndicators(frequency: 'daily' | 'monthly') {
                 class="btn btn-primary"
               >
                 <span v-if="loading" class="loading loading-spinner"></span>
-                {{ loading ? 'Saving...' : modalMode === 'create' ? 'Create Entry' : 'Update Entry' }}
+                {{ loading ? 'Menyimpan...' : modalMode === 'create' ? 'Simpan Entri' : 'Perbarui Entri' }}
               </button>
             </div>
           </form>
         </div>
         <form method="dialog" class="modal-backdrop" @click="closeModal">
-          <button>close</button>
+          <button>tutup</button>
         </form>
       </dialog>
     </Teleport>

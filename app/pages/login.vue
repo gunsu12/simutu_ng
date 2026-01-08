@@ -31,10 +31,10 @@ const handleLogin = async () => {
       // Force redirect to dashboard
       window.location.href = '/dashboard'
     } else {
-      error.value = (response as any).message || 'Login failed'
+      error.value = (response as any).message || 'Login gagal'
     }
   } catch (err: any) {
-    error.value = err?.data?.message || 'Login failed. Please try again.'
+    error.value = err?.data?.message || 'Login gagal. Silakan coba lagi.'
   } finally {
     loading.value = false
   }

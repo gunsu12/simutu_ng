@@ -27,18 +27,18 @@ export const apiRateLimiter = new RateLimiterMemory({
  */
 export function getClientIp(event: H3Event): string {
   const forwardedFor = getHeader(event, 'x-forwarded-for')
-  
+
   if (forwardedFor) {
     // X-Forwarded-For can contain multiple IPs, take the first one
     const ips = forwardedFor.split(',')
     return ips[0].trim()
   }
-  
+
   const realIp = getHeader(event, 'x-real-ip')
   if (realIp) {
     return realIp
   }
-  
+
   // Fallback to connection remote address
   return event.node.req.socket.remoteAddress || 'unknown'
 }
@@ -55,15 +55,20 @@ export async function applyRateLimit(
   limiter: RateLimiterMemory,
   key?: string
 ): Promise<void> {
+  // Bypass rate limiting in development environment
+  if (process.env.NODE_ENV === 'development') {
+    return
+  }
+
   const identifier = key || getClientIp(event)
-  
+
   try {
     await limiter.consume(identifier)
   } catch (rateLimiterRes: any) {
     const retrySecs = Math.round(rateLimiterRes.msBeforeNext / 1000) || 1
-    
+
     setResponseHeader(event, 'Retry-After', retrySecs)
-    
+
     throw createError({
       statusCode: 429,
       statusMessage: 'Too Many Requests',

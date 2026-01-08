@@ -49,7 +49,7 @@ const selectedFrequency = ref((route.query.frequency as string) || 'monthly')
 const categories = ref<Category[]>([])
 const unitGroups = ref<UnitGroup[]>([])
 
-const months = ['Jan', 'Feb', 'Mart', 'Aprl', 'Mei', 'Jun', 'Jul', 'Agst', 'Sept', 'Okt', 'Nov', 'Des']
+const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agt', 'Sep', 'Okt', 'Nov', 'Des']
 
 // Years for dropdown
 const years = computed(() => {
@@ -91,11 +91,11 @@ async function fetchReport() {
       categories.value = response.data.categories
       unitGroups.value = response.data.unitGroups
     } else {
-      error.value = response.message || 'Failed to load report'
+      error.value = response.message || 'Gagal memuat laporan'
     }
   } catch (err: any) {
     console.error('Failed to fetch report:', err)
-    error.value = err.message || 'Failed to load report'
+    error.value = err.message || 'Gagal memuat laporan'
   } finally {
     loading.value = false
   }
