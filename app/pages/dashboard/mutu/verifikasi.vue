@@ -106,11 +106,11 @@ const units = ref<Unit[]>([])
 
 // Filter state
 const now = new Date()
-const lastWeek = new Date(now)
-lastWeek.setDate(now.getDate() - 6)
+const firstDay = new Date(now.getFullYear(), now.getMonth(), 1)
+const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0)
 
-const filterStartDate = ref(lastWeek.toISOString().split('T')[0])
-const filterEndDate = ref(now.toISOString().split('T')[0])
+const filterStartDate = ref(new Date(firstDay.getTime() - (firstDay.getTimezoneOffset() * 60000)).toISOString().split('T')[0])
+const filterEndDate = ref(new Date(lastDay.getTime() - (lastDay.getTimezoneOffset() * 60000)).toISOString().split('T')[0])
 const filterFrequency = ref<'daily' | 'monthly' | ''>('')
 const filterStatus = ref<string>('')
 const filterDivisionId = ref<string>('')
@@ -225,11 +225,11 @@ async function fetchUnits() {
 
 function resetFilters() {
   const now = new Date()
-  const lastWeek = new Date(now)
-  lastWeek.setDate(now.getDate() - 6)
+  const firstDay = new Date(now.getFullYear(), now.getMonth(), 1)
+  const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0)
 
-  filterStartDate.value = lastWeek.toISOString().split('T')[0]
-  filterEndDate.value = now.toISOString().split('T')[0]
+  filterStartDate.value = new Date(firstDay.getTime() - (firstDay.getTimezoneOffset() * 60000)).toISOString().split('T')[0]
+  filterEndDate.value = new Date(lastDay.getTime() - (lastDay.getTimezoneOffset() * 60000)).toISOString().split('T')[0]
   filterFrequency.value = ''
   filterStatus.value = ''
   filterDivisionId.value = ''

@@ -97,11 +97,11 @@ const selectedEntry = ref<IndicatorEntry | null>(null)
 
 // Filter state
 const today = new Date()
-const lastWeek = new Date(today)
-lastWeek.setDate(today.getDate() - 6)
+const firstDay = new Date(today.getFullYear(), today.getMonth(), 1)
+const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0)
 
-const filterStartDate = ref(lastWeek.toISOString().split('T')[0])
-const filterEndDate = ref(today.toISOString().split('T')[0])
+const filterStartDate = ref(new Date(firstDay.getTime() - (firstDay.getTimezoneOffset() * 60000)).toISOString().split('T')[0])
+const filterEndDate = ref(new Date(lastDay.getTime() - (lastDay.getTimezoneOffset() * 60000)).toISOString().split('T')[0])
 const filterFrequency = ref<'daily' | 'monthly' | ''>('')
 const filterStatus = ref<string>('')
 const filterUnitId = ref('')
@@ -309,11 +309,11 @@ function toggleIndicatorDetails(index: number) {
 
 function resetFilters() {
   const today = new Date()
-  const lastWeek = new Date(today)
-  lastWeek.setDate(today.getDate() - 6)
+  const firstDay = new Date(today.getFullYear(), today.getMonth(), 1)
+  const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0)
 
-  filterStartDate.value = lastWeek.toISOString().split('T')[0]
-  filterEndDate.value = today.toISOString().split('T')[0]
+  filterStartDate.value = new Date(firstDay.getTime() - (firstDay.getTimezoneOffset() * 60000)).toISOString().split('T')[0]
+  filterEndDate.value = new Date(lastDay.getTime() - (lastDay.getTimezoneOffset() * 60000)).toISOString().split('T')[0]
   filterFrequency.value = ''
   filterStatus.value = ''
   if (isAdmin.value) {

@@ -1,5 +1,5 @@
 import { db } from '../../database'
-import { sites } from '../../database/schema'
+import { sites, employees } from '../../database/schema'
 import { eq } from 'drizzle-orm'
 import { generateFileUrl } from '../../utils/s3'
 
@@ -9,12 +9,12 @@ import { generateFileUrl } from '../../utils/s3'
  */
 function extractS3Key(storedValue: string | null): string | null {
   if (!storedValue) return null
-  
+
   // If it's already a key (no http), return as-is
   if (!storedValue.includes('http')) {
     return storedValue
   }
-  
+
   // Extract key from full URL (remove query string, get last 3 path segments)
   const urlParts = storedValue.split('?')[0]
   return urlParts.split('/').slice(-3).join('/')
@@ -23,25 +23,46 @@ function extractS3Key(storedValue: string | null): string | null {
 export default defineEventHandler(async (event) => {
   try {
     const id = getRouterParam(event, 'id')
-    
+
     if (!id) {
       return {
         success: false,
         message: 'Site ID is required',
       }
     }
-    
-    const site = await db.select().from(sites).where(eq(sites.id, id)).limit(1)
-    
+
+    const site = await db
+      .select({
+        id: sites.id,
+        siteCode: sites.siteCode,
+        name: sites.name,
+        description: sites.description,
+        address: sites.address,
+        email: sites.email,
+        website: sites.website,
+        phone: sites.phone,
+        fax: sites.fax,
+        siteLogo: sites.siteLogo,
+        siteLogoThumbnail: sites.siteLogoThumbnail,
+        qualityOfficeHeadId: sites.qualityOfficeHeadId,
+        qualityOfficeHeadName: employees.fullName,
+        createdAt: sites.createdAt,
+        updatedAt: sites.updatedAt,
+      })
+      .from(sites)
+      .leftJoin(employees, eq(sites.qualityOfficeHeadId, employees.id))
+      .where(eq(sites.id, id))
+      .limit(1)
+
     if (site.length === 0) {
       return {
         success: false,
         message: 'Site not found',
       }
     }
-    
+
     let siteData = site[0]
-    
+
     // Generate signed URL for logo if exists (use original for detail view)
     const key = extractS3Key(siteData.siteLogo)
     if (key) {
@@ -52,7 +73,7 @@ export default defineEventHandler(async (event) => {
         console.error('Error generating signed URL:', error)
       }
     }
-    
+
     return {
       success: true,
       data: siteData,

@@ -18,8 +18,16 @@ interface Site {
   phone?: string | null
   fax?: string | null
   siteLogo?: string | null
+  qualityOfficeHeadId?: string | null
+  qualityOfficeHeadName?: string | null
   createdAt: Date
   updatedAt: Date
+}
+
+interface Employee {
+  id: string
+  fullName: string
+  nik?: string
 }
 
 // State
@@ -29,6 +37,14 @@ const loading = ref(false)
 const modalOpen = ref(false)
 const modalMode = ref<'create' | 'edit'>('create')
 const selectedSite = ref<Site | null>(null)
+
+// Employee selection state
+const employees = ref<Employee[]>([])
+const employeeSearchQuery = ref('')
+const employeeLoading = ref(false)
+const employeeTotalPages = ref(1)
+const employeeCurrentPage = ref(1)
+const employeeInput = ref<HTMLInputElement | null>(null)
 
 // Form data
 const formData = ref({
@@ -40,6 +56,7 @@ const formData = ref({
   website: '',
   phone: '',
   fax: '',
+  qualityOfficeHeadId: '',
   siteLogo: null as File | null,
   oldSiteLogo: '' as string
 })
@@ -71,10 +88,48 @@ async function fetchSites() {
   }
 }
 
+// Fetch employees
+async function fetchEmployees(search = '', page = 1) {
+  employeeLoading.value = true
+  try {
+    const response = await $fetch<{ 
+      success: boolean; 
+      data: Employee[];
+      meta: { total: number; totalPages: number; page: number; limit: number }
+    }>('/api/employees', {
+      query: { 
+        search, 
+        page,
+        limit: 10
+      }
+    })
+    if (response.success) {
+      employees.value = response.data
+      employeeTotalPages.value = response.meta.totalPages
+      employeeCurrentPage.value = response.meta.page
+    }
+  } catch (error) {
+    console.error('Failed to fetch employees:', error)
+  } finally {
+    employeeLoading.value = false
+  }
+}
+
+// Handle employee search with debounce
+let employeeSearchTimeout: ReturnType<typeof setTimeout> | null = null
+function handleEmployeeSearch() {
+  if (employeeSearchTimeout) clearTimeout(employeeSearchTimeout)
+  employeeSearchTimeout = setTimeout(() => {
+    fetchEmployees(employeeSearchQuery.value)
+  }, 500)
+}
+
 function openCreateModal() {
   modalMode.value = 'create'
   selectedSite.value = null
   resetForm()
+  employeeSearchQuery.value = ''
+  fetchEmployees()
   modalOpen.value = true
 }
 
@@ -90,10 +145,13 @@ function openEditModal(site: Site) {
     website: site.website || '',
     phone: site.phone || '',
     fax: site.fax || '',
+    qualityOfficeHeadId: site.qualityOfficeHeadId || '',
     siteLogo: null,
     oldSiteLogo: site.siteLogo || ''
   }
   logoPreview.value = site.siteLogo || null
+  employeeSearchQuery.value = site.qualityOfficeHeadName || ''
+  fetchEmployees(site.qualityOfficeHeadName || '')
   modalOpen.value = true
 }
 
@@ -112,10 +170,12 @@ function resetForm() {
     website: '',
     phone: '',
     fax: '',
+    qualityOfficeHeadId: '',
     siteLogo: null,
     oldSiteLogo: ''
   }
   logoPreview.value = null
+  employeeSearchQuery.value = ''
 }
 
 function handleFileChange(event: Event) {
@@ -153,6 +213,7 @@ async function handleSubmit() {
     data.append('website', formData.value.website)
     data.append('phone', formData.value.phone)
     data.append('fax', formData.value.fax)
+    data.append('qualityOfficeHeadId', formData.value.qualityOfficeHeadId)
     
     if (formData.value.siteLogo) {
       data.append('siteLogo', formData.value.siteLogo)
@@ -218,6 +279,7 @@ async function handleDelete(site: Site) {
 // Lifecycle
 onMounted(() => {
   fetchSites()
+  fetchEmployees()
 })
 </script>
 
@@ -274,6 +336,7 @@ onMounted(() => {
               <tr>
                 <th>Kode</th>
                 <th>Nama</th>
+                <th>Kepala Quality Office</th>
                 <th>Alamat</th>
                 <th>Kontak</th>
                 <th>Logo</th>
@@ -292,6 +355,9 @@ onMounted(() => {
                       {{ site.description }}
                     </div>
                   </div>
+                </td>
+                <td>
+                  <div class="font-medium">{{ site.qualityOfficeHeadName || '-' }}</div>
                 </td>
                 <td>
                   <div v-if="site.address" class="text-sm">
@@ -382,6 +448,73 @@ onMounted(() => {
                 required
               />
             </div>
+          </div>
+
+          <!-- Quality Office Head -->
+          <div class="form-control">
+            <label class="label">
+              <span class="label-text">Kepala Quality Office</span>
+            </label>
+            <div class="dropdown w-full">
+              <div class="relative">
+                <input
+                  ref="employeeInput"
+                  v-model="employeeSearchQuery"
+                  type="text"
+                  placeholder="Cari karyawan..."
+                  class="input input-bordered w-full"
+                  @input="handleEmployeeSearch"
+                  @focus="() => { if (!employeeSearchQuery) fetchEmployees() }"
+                />
+                <div v-if="employeeLoading" class="absolute right-3 top-1/2 -translate-y-1/2">
+                  <span class="loading loading-spinner loading-xs"></span>
+                </div>
+              </div>
+              
+              <ul class="dropdown-content z-[20] menu p-2 shadow bg-base-100 rounded-box w-full max-h-60 overflow-y-auto mt-1 border border-base-content/10">
+                <li v-if="employees.length === 0 && !employeeLoading">
+                  <a class="text-base-content/50">Karyawan tidak ditemukan</a>
+                </li>
+                <li v-for="employee in employees" :key="employee.id">
+                  <button 
+                    type="button"
+                    @click="() => { 
+                      formData.qualityOfficeHeadId = employee.id; 
+                      employeeSearchQuery = employee.fullName;
+                      (employeeInput as any)?.blur();
+                    }"
+                    :class="{ 'active': formData.qualityOfficeHeadId === employee.id }"
+                  >
+                    <div class="flex flex-col items-start text-left">
+                      <span class="font-medium">{{ employee.fullName }}</span>
+                      <span class="text-xs opacity-50">{{ employee.nik }}</span>
+                    </div>
+                  </button>
+                </li>
+                <li v-if="employeeTotalPages > 1" class="border-t border-base-content/10 mt-2 pt-2">
+                  <div class="flex justify-between items-center px-4 py-2">
+                    <button 
+                      type="button"
+                      class="btn btn-xs" 
+                      :disabled="employeeCurrentPage === 1 || employeeLoading"
+                      @click.stop="fetchEmployees(employeeSearchQuery, employeeCurrentPage - 1)"
+                    >«</button>
+                    <span class="text-xs">Hal {{ employeeCurrentPage }} / {{ employeeTotalPages }}</span>
+                    <button 
+                      type="button"
+                      class="btn btn-xs" 
+                      :disabled="employeeCurrentPage === employeeTotalPages || employeeLoading"
+                      @click.stop="fetchEmployees(employeeSearchQuery, employeeCurrentPage + 1)"
+                    >»</button>
+                  </div>
+                </li>
+              </ul>
+            </div>
+            <input type="hidden" v-model="formData.qualityOfficeHeadId" />
+            <label class="label" v-if="formData.qualityOfficeHeadId">
+              <span class="label-text-alt text-success">Terpilih: {{ employeeSearchQuery }}</span>
+              <button type="button" @click="() => { formData.qualityOfficeHeadId = ''; employeeSearchQuery = ''; fetchEmployees(); }" class="label-text-alt link link-error">Hapus</button>
+            </label>
           </div>
 
           <!-- Description -->

@@ -11,10 +11,11 @@ const isAdmin = computed(() => user.value?.role === 'admin')
 
 // Date range state
 const today = new Date()
-const endDate = ref(today.toISOString().split('T')[0])
-const lastWeek = new Date(today)
-lastWeek.setDate(today.getDate() - 6)
-const startDate = ref(lastWeek.toISOString().split('T')[0])
+const firstDay = new Date(today.getFullYear(), today.getMonth(), 1)
+const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0)
+
+const startDate = ref(new Date(firstDay.getTime() - (firstDay.getTimezoneOffset() * 60000)).toISOString().split('T')[0])
+const endDate = ref(new Date(lastDay.getTime() - (lastDay.getTimezoneOffset() * 60000)).toISOString().split('T')[0])
 
 // Unit selection state
 const selectedUnitId = ref(user.value?.unitId || '')

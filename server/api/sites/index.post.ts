@@ -6,7 +6,7 @@ import { logActivity } from '../../utils/activityLogger'
 export default defineEventHandler(async (event) => {
   try {
     const formData = await readFormData(event)
-    
+
     const siteCode = formData.get('siteCode') as string
     const name = formData.get('name') as string
     const description = formData.get('description') as string
@@ -15,17 +15,18 @@ export default defineEventHandler(async (event) => {
     const website = formData.get('website') as string
     const phone = formData.get('phone') as string
     const fax = formData.get('fax') as string
+    const qualityOfficeHeadId = formData.get('qualityOfficeHeadId') as string
     const logoFile = formData.get('siteLogo') as File | null
-    
+
     let siteLogo: string | null = null
     let siteLogoThumbnail: string | null = null
-    
+
     if (logoFile && logoFile.size > 0) {
       const { originalKey, thumbnailKey } = await uploadImageWithThumbnail(logoFile, 'sites/logos')
       siteLogo = originalKey
       siteLogoThumbnail = thumbnailKey
     }
-    
+
     const newSite = await db.insert(sites).values({
       siteCode,
       name,
@@ -35,6 +36,7 @@ export default defineEventHandler(async (event) => {
       website: website || null,
       phone: phone || null,
       fax: fax || null,
+      qualityOfficeHeadId: qualityOfficeHeadId || null,
       siteLogo,
       siteLogoThumbnail,
     }).returning()
@@ -46,7 +48,7 @@ export default defineEventHandler(async (event) => {
       description: `Membuat site baru: ${name} (${siteCode})`,
       details: { siteId: newSite[0].id, siteCode, name }
     })
-    
+
     return {
       success: true,
       data: newSite[0],

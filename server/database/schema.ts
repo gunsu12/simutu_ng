@@ -12,6 +12,7 @@ export const sites = pgTable('sites', {
   fax: text('fax'),
   siteLogo: text('site_logo'),
   siteLogoThumbnail: text('site_logo_thumbnail'),
+  qualityOfficeHeadId: uuid('quality_office_head_id').references(() => employees.id, { onDelete: 'set null' }),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
   deletedAt: timestamp('deleted_at'),

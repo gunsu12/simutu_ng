@@ -72,11 +72,14 @@ const unitNameSelect = ref('')
 // Filter state
 const selectedUnitId = ref((route.query.unitId as string) || '')
 const now = new Date()
-const lastWeek = new Date(now)
-lastWeek.setDate(now.getDate() - 6)
+const firstDay = new Date(now.getFullYear(), now.getMonth(), 1)
+const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0)
 
-const startDate = ref((route.query.startDate as string) || (route.query.date as string) || lastWeek.toISOString().split('T')[0])
-const endDate = ref((route.query.endDate as string) || (route.query.date as string) || now.toISOString().split('T')[0])
+const defaultStartDate = new Date(firstDay.getTime() - (firstDay.getTimezoneOffset() * 60000)).toISOString().split('T')[0]
+const defaultEndDate = new Date(lastDay.getTime() - (lastDay.getTimezoneOffset() * 60000)).toISOString().split('T')[0]
+
+const startDate = ref((route.query.startDate as string) || (route.query.date as string) || defaultStartDate)
+const endDate = ref((route.query.endDate as string) || (route.query.date as string) || defaultEndDate)
 
 // Fetch units
 async function fetchUnits(search = '', page = 1, fetchById = '') {

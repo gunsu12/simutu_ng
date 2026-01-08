@@ -80,6 +80,7 @@ export default defineEventHandler(async (event) => {
         targetWeight: indicators.targetWeight,
         targetUnit: indicators.targetUnit,
         targetKeterangan: indicators.targetKeterangan,
+        avgSkor: sql<number>`avg(CAST(${indicatorEntryItems.skor} AS NUMERIC))`,
       })
       .from(indicatorEntryItems)
       .innerJoin(indicatorEntries, eq(indicatorEntryItems.indicatorEntryId, indicatorEntries.id))
@@ -136,43 +137,8 @@ export default defineEventHandler(async (event) => {
 
       const target = item.target ? Number(item.target) : 0
       const targetWeight = item.targetWeight ? Number(item.targetWeight) : 0
-      let skor: number | null = null
-      let point: number | null = null
-
-      if (capaian !== null) {
-        const keterangan = item.targetKeterangan || '>='
-        let achieved = false
-
-        switch (keterangan) {
-          case '>':
-            achieved = capaian > target
-            break
-          case '<':
-            achieved = capaian < target
-            break
-          case '=':
-            achieved = capaian === target
-            break
-          case '>=':
-            achieved = capaian >= target
-            break
-          case '<=':
-            achieved = capaian <= target
-            break
-        }
-
-        skor = achieved ? 100 : (target !== 0 ? (capaian / target) * 100 : 0)
-        // Ensure skor doesn't exceed 100 if target is met or exceed
-        if (skor > 100) skor = 100
-        // Handle case where higher is worse (e.g. <= target)
-        if (!achieved && (keterangan === '<' || keterangan === '<=')) {
-          // If the target is <= 5 and capaian is 10, the score should be lower than 100
-          // A simple way is to use (target/capaian)*100 if capaian > target
-          skor = capaian !== 0 ? (target / capaian) * 100 : 0
-        }
-
-        point = (skor / 100) * targetWeight
-      }
+      const skor = item.avgSkor !== null ? Number(item.avgSkor) : null
+      const point = skor !== null ? skor * targetWeight : null
 
       reportItems.push({
         indicatorId: item.id,
@@ -190,7 +156,7 @@ export default defineEventHandler(async (event) => {
         standarKeterangan: item.targetKeterangan,
         skor: skor,
         point: point,
-        isNeedPDCA: (skor ?? 0) < 100, // Typically needed if not 100%
+        isNeedPDCA: (target ?? 0) < 100, // Typically needed if not 100%
         status: 'finish', // For aggregated report, we might just mark as finish if entries exist
       })
     }
