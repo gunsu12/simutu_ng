@@ -5,13 +5,13 @@ export default defineEventHandler(async (event) => {
   try {
     const query = getQuery(event)
     const rawKey = query.key as string
-    
+
     // Validate S3 key to prevent path traversal attacks
     const key = validateS3Key(rawKey)
-    
-    // Generate presigned URL (valid for 7 days)
-    const signedUrl = await getPresignedUrl(key, 604800)
-    
+
+    // Generate presigned URL (valid for 2 hours)
+    const signedUrl = await getPresignedUrl(key, 7200)
+
     return {
       success: true,
       url: signedUrl,
