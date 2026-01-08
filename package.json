@@ -32,6 +32,7 @@
     "dotenv": "^17.2.3",
     "drizzle-kit": "^0.30.0",
     "drizzle-orm": "^0.45.1",
+    "file-type": "^21.3.0",
     "lucia": "^3.2.2",
     "lucide-vue-next": "^0.562.0",
     "mysql2": "^3.16.0",

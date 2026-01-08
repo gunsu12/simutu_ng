@@ -2,11 +2,11 @@
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: true },
-  
+
   future: {
     compatibilityVersion: 4
   },
-  
+
   modules: [
     '@nuxtjs/tailwindcss',
     '@pinia/nuxt'
@@ -27,7 +27,8 @@ export default defineNuxtConfig({
           'X-Content-Type-Options': 'nosniff',
           'X-XSS-Protection': '1; mode=block',
           'Referrer-Policy': 'strict-origin-when-cross-origin',
-          'Permissions-Policy': 'camera=(), microphone=(), geolocation=()'
+          'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
+          'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: *; font-src 'self' data:; connect-src 'self' *;"
         }
       }
     }
