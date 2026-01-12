@@ -3,8 +3,8 @@ definePageMeta({
   layout: false
 })
 
-// Redirect to login page
-navigateTo('/login')
+// Redirect to dashboard (middleware will handle auth check)
+navigateTo('/dashboard')
 </script>
 
 <template>

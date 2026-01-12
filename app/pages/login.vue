@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { LogIn, ShieldCheck } from 'lucide-vue-next'
+import { useAuthStore } from '~/stores/auth'
 
 definePageMeta({
   layout: false,
   middleware: ['guest']
 })
 
-const { fetchSession } = useAuth()
+const { login: ssoLogin } = useAuth()
+const authStore = useAuthStore()
 const email = ref('')
 const password = ref('')
 const loading = ref(false)
@@ -27,7 +29,7 @@ const handleLogin = async () => {
 
     if ((response as any).success) {
       // Fetch session to populate user state
-      await fetchSession()
+      await authStore.fetchSession()
       // Force redirect to dashboard
       window.location.href = '/dashboard'
     } else {
@@ -178,7 +180,7 @@ const handleLogin = async () => {
 
               <button 
                 type="button"
-                @click="navigateTo('/api/auth/login/sso', { external: true })"
+                @click="ssoLogin()"
                 class="btn btn-outline btn-secondary w-full h-12 border-2 hover:bg-secondary/10 hover:text-secondary transition-all duration-300 flex items-center justify-center gap-2"
               >
                 <ShieldCheck class="w-5 h-5" />

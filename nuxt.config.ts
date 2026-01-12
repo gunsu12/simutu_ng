@@ -12,10 +12,37 @@ export default defineNuxtConfig({
     '@pinia/nuxt'
   ],
 
+  runtimeConfig: {
+    // Private keys (server-side only)
+    sso: {
+      clientSecret: process.env.SSO_CLIENT_SECRET,
+    },
+
+    // Public keys (available on client-side)
+    public: {
+      sso: {
+        baseUrl: process.env.SSO_BASE_URL || 'https://sso.yourdomain.com',
+        clientId: process.env.SSO_CLIENT_ID || '',
+        redirectUri: process.env.SSO_REDIRECT_URI || 'http://localhost:3000/auth/callback',
+        scopes: ['openid', 'profile', 'email'],
+      },
+    },
+  },
+
+  // Optional: Enable auto-imports
+  imports: {
+    dirs: ['stores'],
+  },
+
   // Improve performance with page caching
   routeRules: {
     '/dashboard/**': { ssr: false },
-    '/login': { ssr: false }
+    '/login': { ssr: false },
+    // Redirects for legacy or root paths
+    '/users': { redirect: '/dashboard/master/users' },
+    '/employees': { redirect: '/dashboard/master/employee' },
+    '/units': { redirect: '/dashboard/master/units' },
+    '/sites': { redirect: '/dashboard/master/site' },
   },
 
   // Security headers

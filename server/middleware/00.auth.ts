@@ -3,10 +3,13 @@ import { lucia } from '../utils/auth'
 export default defineEventHandler(async (event) => {
   const path = event.path
 
-  // Skip auth for login endpoint and public routes
+  // Skip auth for login endpoint, SSO endpoints, and public routes
   if (
     path === '/api/auth/login' ||
     path === '/api/auth/session' ||
+    path === '/api/auth/sync-sso' ||
+    path === '/api/auth/sso-session' ||
+    path === '/api/activity-logs/create' ||
     path.startsWith('/_nuxt') ||
     path.startsWith('/api/_') ||
     !path.startsWith('/api/')
