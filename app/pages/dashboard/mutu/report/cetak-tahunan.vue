@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { Printer, ArrowLeft, Calendar, Download } from 'lucide-vue-next'
-import * as XLSX from 'xlsx'
 
 definePageMeta({
   layout: false,
@@ -129,74 +128,24 @@ function printReport() {
 }
 
 // Export Excel
-function exportExcel() {
-  // Define headers
-  const headers = [
-    'NO',
-    'JUDUL INDIKATOR MUTU',
-    'UNIT/PIC',
-    'Target',
-    ...months
-  ]
-
-  const data: any[][] = [headers]
-
-  // Add data rows
-  unitGroups.value.forEach(group => {
-    group.indicators.forEach(row => {
-      const rowData = [
-        row.no,
-        row.judul,
-        row.unitName,
-        formatTarget(row),
-        ...row.monthlyResults.map(r => formatCapaian(r, row.targetUnit))
-      ]
-      data.push(rowData)
+async function exportExcel() {
+  try {
+    const params = new URLSearchParams({
+      year: selectedYear.value.toString(),
+      frequency: selectedFrequency.value,
     })
-
-    // Add summary row for the group
-    const summaryRow = [
-      '',
-      'Indikator tidak mencapai target',
-      '',
-      '',
-      ...group.notAchievedCount.map(count => count > 0 ? count : '-')
-    ]
-    data.push(summaryRow)
     
-    // Add empty row separator
-    data.push([])
-  })
+    if (selectedCategoryId.value) {
+      params.append('categoryId', selectedCategoryId.value)
+    }
 
-  // Create worksheet
-  const ws = XLSX.utils.aoa_to_sheet(data)
-
-  // Adjust column widths
-  const colWidths = [
-    { wch: 5 },  // NO
-    { wch: 50 }, // JUDUL
-    { wch: 20 }, // UNIT
-    { wch: 15 }, // Target
-    ...months.map(() => ({ wch: 8 })) // Months
-  ]
-  ws['!cols'] = colWidths
-
-  // Create workbook
-  const wb = XLSX.utils.book_new()
-  XLSX.utils.book_append_sheet(wb, ws, 'Laporan Tahunan')
-
-  // Generate filename
-  const now = new Date()
-  const timestamp = now.getFullYear() + '-' +
-    String(now.getMonth() + 1).padStart(2, '0') + '-' +
-    String(now.getDate()).padStart(2, '0') + '_' +
-    String(now.getHours()).padStart(2, '0') + '-' +
-    String(now.getMinutes()).padStart(2, '0') + '-' +
-    String(now.getSeconds()).padStart(2, '0')
-  const filename = `Laporan_Mutu_Tahunan_${selectedYear.value}_${timestamp}.xlsx`
-
-  // Save file
-  XLSX.writeFile(wb, filename)
+    // Trigger download by opening the URL in a new tab or using window.location
+    const url = `/api/reports/yearly-excel?${params.toString()}`
+    window.location.href = url
+  } catch (err: any) {
+    console.error('Failed to export excel:', err)
+    alert('Gagal mengekspor Excel: ' + (err.message || 'Terjadi kesalahan'))
+  }
 }
 
 // Get selected category name
