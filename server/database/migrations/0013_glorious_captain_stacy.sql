@@ -1,0 +1,1 @@
+ALTER TABLE "risk_registers" ADD COLUMN "tahun" integer NOT NULL;
