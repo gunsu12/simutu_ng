@@ -1,5 +1,5 @@
 import { db } from '../../database'
-import { indicators, indicatorCategories } from '../../database/schema'
+import { indicators, indicatorCategories, indicatorProfiles } from '../../database/schema'
 import { eq } from 'drizzle-orm'
 import { generateFileUrl } from '../../utils/s3'
 
@@ -55,9 +55,25 @@ export default defineEventHandler(async (event) => {
         isActive: indicators.isActive,
         entryFrequency: indicators.entryFrequency,
         categoryName: indicatorCategories.name,
+        // Profile fields from 1-to-1 table
+        dasarPemikiran: indicatorProfiles.dasarPemikiran,
+        jenisIndikator: indicatorProfiles.jenisIndikator,
+        satuanPengukuran: indicatorProfiles.satuanPengukuran,
+        kriteriaInklusi: indicatorProfiles.kriteriaInklusi,
+        kriteriaEksklusi: indicatorProfiles.kriteriaEksklusi,
+        metodePengumpulanData: indicatorProfiles.metodePengumpulanData,
+        sumberData: indicatorProfiles.sumberData,
+        instrumenPengambilanData: indicatorProfiles.instrumenPengambilanData,
+        besarSampel: indicatorProfiles.besarSampel,
+        caraPengambilanSampel: indicatorProfiles.caraPengambilanSampel,
+        periodePengumpulanData: indicatorProfiles.periodePengumpulanData,
+        penyajianData: indicatorProfiles.penyajianData,
+        periodeAnalisisDanPelaporanData: indicatorProfiles.periodeAnalisisDanPelaporanData,
+        penanggungJawab: indicatorProfiles.penanggungJawab,
       })
       .from(indicators)
       .leftJoin(indicatorCategories, eq(indicators.indicatorCategoryId, indicatorCategories.id))
+      .leftJoin(indicatorProfiles, eq(indicators.id, indicatorProfiles.indicatorId))
       .where(eq(indicators.id, id))
       .limit(1)
 

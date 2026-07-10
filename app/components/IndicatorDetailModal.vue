@@ -24,6 +24,21 @@ interface Indicator {
   isActive: boolean
   createdAt: string
   updatedAt: string
+  // Kamus / Profile fields
+  dasarPemikiran?: string | null
+  jenisIndikator?: string | null
+  satuanPengukuran?: string | null
+  kriteriaInklusi?: string | null
+  kriteriaEksklusi?: string | null
+  metodePengumpulanData?: string | null
+  sumberData?: string | null
+  instrumenPengambilanData?: string | null
+  besarSampel?: string | null
+  caraPengambilanSampel?: string | null
+  periodePengumpulanData?: string | null
+  penyajianData?: string | null
+  periodeAnalisisDanPelaporanData?: string | null
+  penanggungJawab?: string | null
 }
 
 interface Props {
@@ -100,7 +115,7 @@ const formatTarget = (ind: Indicator) => {
 <template>
   <Teleport to="body">
     <dialog :class="['modal', { 'modal-open': isOpen }]" :open="isOpen" style="z-index: 10000">
-      <div class="modal-box max-w-3xl">
+      <div class="modal-box max-w-4xl max-h-[90vh] overflow-y-auto">
         <button type="button" class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" @click="closeModal">✕</button>
         <h3 class="font-bold text-lg mb-4">Detail Indikator</h3>
         
@@ -115,104 +130,147 @@ const formatTarget = (ind: Indicator) => {
         </div>
 
         <!-- Content -->
-        <div v-else-if="indicator" class="space-y-4">
-          <div class="grid grid-cols-2 gap-4">
+        <div v-else-if="indicator" class="space-y-6">
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 bg-base-200 p-4 rounded-xl">
             <div>
-              <label class="text-sm text-base-content/60">Kode</label>
-              <p class="font-mono font-medium">{{ indicator.code }}</p>
+              <label class="text-xs text-base-content/50 uppercase tracking-wider">Kode</label>
+              <p class="font-mono font-bold text-lg">{{ indicator.code }}</p>
             </div>
             <div>
-              <label class="text-sm text-base-content/60">Kategori</label>
-              <p class="font-medium">{{ indicator.categoryName }}</p>
-            </div>
-          </div>
-
-          <div>
-            <label class="text-sm text-base-content/60">Judul</label>
-            <p class="font-medium">{{ indicator.judul }}</p>
-          </div>
-
-          <div v-if="indicator.dimensiMutu">
-            <label class="text-sm text-base-content/60">Dimensi Mutu</label>
-            <p>{{ indicator.dimensiMutu }}</p>
-          </div>
-
-          <div v-if="indicator.tujuan">
-            <label class="text-sm text-base-content/60">Tujuan</label>
-            <p class="whitespace-pre-wrap">{{ indicator.tujuan }}</p>
-          </div>
-
-          <div v-if="indicator.definisiOperasional">
-            <label class="text-sm text-base-content/60">Definisi Operasional</label>
-            <p class="whitespace-pre-wrap">{{ indicator.definisiOperasional }}</p>
-          </div>
-
-          <div class="divider">Formula & Target</div>
-
-          <div class="grid grid-cols-3 gap-4">
-            <div>
-              <label class="text-sm text-base-content/60">Numerator</label>
-              <p>{{ indicator.numerator || '-' }}</p>
+              <label class="text-xs text-base-content/50 uppercase tracking-wider">Kategori</label>
+              <p class="font-semibold text-lg text-primary">{{ indicator.categoryName }}</p>
             </div>
             <div>
-              <label class="text-sm text-base-content/60">Denominator</label>
-              <p>{{ indicator.denominator || '-' }}</p>
-            </div>
-            <div>
-              <label class="text-sm text-base-content/60">Formula Perhitungan</label>
-              <p class="font-mono">{{ indicator.targetCalculationFormula || '-' }}</p>
-            </div>
-          </div>
-
-          <div v-if="indicator.formula">
-            <label class="text-sm text-base-content/60">Deskripsi Formula</label>
-            <p class="whitespace-pre-wrap">{{ indicator.formula }}</p>
-          </div>
-
-          <div class="grid grid-cols-3 gap-4">
-            <div>
-              <label class="text-sm text-base-content/60">Target</label>
-              <p>{{ formatTarget(indicator) }}</p>
-            </div>
-            <div>
-              <label class="text-sm text-base-content/60">Frekuensi Input</label>
+              <label class="text-xs text-base-content/50 uppercase tracking-wider">Frekuensi Input</label>
               <p>
-                <span :class="['badge badge-sm font-medium px-3', indicator.entryFrequency === 'daily' ? 'badge-info' : 'badge-secondary']">
+                <span :class="['badge badge-md font-medium px-3 mt-1', indicator.entryFrequency === 'daily' ? 'badge-info' : 'badge-secondary']">
                   {{ indicator.entryFrequency === 'daily' ? 'Harian' : 'Bulanan' }}
                 </span>
               </p>
             </div>
-            <div>
-              <label class="text-sm text-base-content/60">Status</label>
-              <p>
-                <span :class="['badge badge-sm font-medium px-3', indicator.isActive ? 'badge-success' : 'badge-error']">
-                  {{ indicator.isActive ? 'Aktif' : 'Tidak Aktif' }}
-                </span>
-              </p>
+          </div>
+
+          <div>
+            <label class="text-sm font-semibold text-base-content/75">Judul Indikator</label>
+            <p class="font-medium text-base-content text-base mt-0.5">{{ indicator.judul }}</p>
+          </div>
+
+          <!-- Kamus/Profile Fields (Kamus Indikator Mutu) -->
+          <div class="border border-base-300 rounded-xl overflow-hidden">
+            <div class="bg-base-200/50 px-4 py-2 border-b border-base-300 font-semibold text-sm">
+              Profil / Kamus Indikator Lengkap
+            </div>
+            <div class="divide-y divide-base-200">
+              <div v-if="indicator.dasarPemikiran" class="grid grid-cols-1 md:grid-cols-4 p-3 gap-1 md:gap-4">
+                <div class="font-medium text-sm text-base-content/75">Dasar Pemikiran</div>
+                <div class="md:col-span-3 text-sm whitespace-pre-wrap">{{ indicator.dasarPemikiran }}</div>
+              </div>
+              <div class="grid grid-cols-1 md:grid-cols-4 p-3 gap-1 md:gap-4">
+                <div class="font-medium text-sm text-base-content/75">Dimensi Mutu</div>
+                <div class="md:col-span-3 text-sm">{{ indicator.dimensiMutu || '-' }}</div>
+              </div>
+              <div class="grid grid-cols-1 md:grid-cols-4 p-3 gap-1 md:gap-4">
+                <div class="font-medium text-sm text-base-content/75">Tujuan</div>
+                <div class="md:col-span-3 text-sm whitespace-pre-wrap">{{ indicator.tujuan || '-' }}</div>
+              </div>
+              <div class="grid grid-cols-1 md:grid-cols-4 p-3 gap-1 md:gap-4">
+                <div class="font-medium text-sm text-base-content/75">Definisi Operasional</div>
+                <div class="md:col-span-3 text-sm whitespace-pre-wrap">{{ indicator.definisiOperasional || '-' }}</div>
+              </div>
+              <div v-if="indicator.jenisIndikator" class="grid grid-cols-1 md:grid-cols-4 p-3 gap-1 md:gap-4">
+                <div class="font-medium text-sm text-base-content/75">Jenis Indikator</div>
+                <div class="md:col-span-3 text-sm">{{ indicator.jenisIndikator }}</div>
+              </div>
+              <div v-if="indicator.satuanPengukuran" class="grid grid-cols-1 md:grid-cols-4 p-3 gap-1 md:gap-4">
+                <div class="font-medium text-sm text-base-content/75">Satuan Pengukuran</div>
+                <div class="md:col-span-3 text-sm">{{ indicator.satuanPengukuran }}</div>
+              </div>
+              <div class="grid grid-cols-1 md:grid-cols-4 p-3 gap-1 md:gap-4">
+                <div class="font-medium text-sm text-base-content/75">Numerator (Pembilang)</div>
+                <div class="md:col-span-3 text-sm">{{ indicator.numerator || '-' }}</div>
+              </div>
+              <div class="grid grid-cols-1 md:grid-cols-4 p-3 gap-1 md:gap-4">
+                <div class="font-medium text-sm text-base-content/75">Denominator (Penyebut)</div>
+                <div class="md:col-span-3 text-sm">{{ indicator.denominator || '-' }}</div>
+              </div>
+              <div class="grid grid-cols-1 md:grid-cols-4 p-3 gap-1 md:gap-4">
+                <div class="font-medium text-sm text-base-content/75">Formula Perhitungan</div>
+                <div class="md:col-span-3 text-sm font-mono">{{ indicator.targetCalculationFormula || '-' }}</div>
+              </div>
+              <div v-if="indicator.formula" class="grid grid-cols-1 md:grid-cols-4 p-3 gap-1 md:gap-4">
+                <div class="font-medium text-sm text-base-content/75">Deskripsi Formula</div>
+                <div class="md:col-span-3 text-sm whitespace-pre-wrap">{{ indicator.formula }}</div>
+              </div>
+              <div class="grid grid-cols-1 md:grid-cols-4 p-3 gap-1 md:gap-4">
+                <div class="font-medium text-sm text-base-content/75">Target Pencapaian</div>
+                <div class="md:col-span-3 text-sm font-bold text-success">{{ formatTarget(indicator) }}</div>
+              </div>
+              <div v-if="indicator.kriteriaInklusi" class="grid grid-cols-1 md:grid-cols-4 p-3 gap-1 md:gap-4">
+                <div class="font-medium text-sm text-base-content/75">Kriteria Inklusi</div>
+                <div class="md:col-span-3 text-sm whitespace-pre-wrap">{{ indicator.kriteriaInklusi }}</div>
+              </div>
+              <div v-if="indicator.kriteriaEksklusi" class="grid grid-cols-1 md:grid-cols-4 p-3 gap-1 md:gap-4">
+                <div class="font-medium text-sm text-base-content/75">Kriteria Eksklusi</div>
+                <div class="md:col-span-3 text-sm whitespace-pre-wrap">{{ indicator.kriteriaEksklusi }}</div>
+              </div>
+              <div v-if="indicator.metodePengumpulanData" class="grid grid-cols-1 md:grid-cols-4 p-3 gap-1 md:gap-4">
+                <div class="font-medium text-sm text-base-content/75">Metode Pengumpulan Data</div>
+                <div class="md:col-span-3 text-sm">{{ indicator.metodePengumpulanData }}</div>
+              </div>
+              <div v-if="indicator.sumberData" class="grid grid-cols-1 md:grid-cols-4 p-3 gap-1 md:gap-4">
+                <div class="font-medium text-sm text-base-content/75">Sumber Data</div>
+                <div class="md:col-span-3 text-sm">{{ indicator.sumberData }}</div>
+              </div>
+              <div v-if="indicator.instrumenPengambilanData" class="grid grid-cols-1 md:grid-cols-4 p-3 gap-1 md:gap-4">
+                <div class="font-medium text-sm text-base-content/75">Instrumen Pengambilan Data</div>
+                <div class="md:col-span-3 text-sm">{{ indicator.instrumenPengambilanData }}</div>
+              </div>
+              <div v-if="indicator.besarSampel" class="grid grid-cols-1 md:grid-cols-4 p-3 gap-1 md:gap-4">
+                <div class="font-medium text-sm text-base-content/75">Besar Sampel</div>
+                <div class="md:col-span-3 text-sm">{{ indicator.besarSampel }}</div>
+              </div>
+              <div v-if="indicator.caraPengambilanSampel" class="grid grid-cols-1 md:grid-cols-4 p-3 gap-1 md:gap-4">
+                <div class="font-medium text-sm text-base-content/75">Cara Pengambilan Sampel</div>
+                <div class="md:col-span-3 text-sm">{{ indicator.caraPengambilanSampel }}</div>
+              </div>
+              <div v-if="indicator.periodePengumpulanData" class="grid grid-cols-1 md:grid-cols-4 p-3 gap-1 md:gap-4">
+                <div class="font-medium text-sm text-base-content/75">Periode Pengumpulan Data</div>
+                <div class="md:col-span-3 text-sm">{{ indicator.periodePengumpulanData }}</div>
+              </div>
+              <div v-if="indicator.penyajianData" class="grid grid-cols-1 md:grid-cols-4 p-3 gap-1 md:gap-4">
+                <div class="font-medium text-sm text-base-content/75">Penyajian Data</div>
+                <div class="md:col-span-3 text-sm">{{ indicator.penyajianData }}</div>
+              </div>
+              <div v-if="indicator.periodeAnalisisDanPelaporanData" class="grid grid-cols-1 md:grid-cols-4 p-3 gap-1 md:gap-4">
+                <div class="font-medium text-sm text-base-content/75">Periode Analisis & Pelaporan</div>
+                <div class="md:col-span-3 text-sm">{{ indicator.periodeAnalisisDanPelaporanData }}</div>
+              </div>
+              <div v-if="indicator.penanggungJawab" class="grid grid-cols-1 md:grid-cols-4 p-3 gap-1 md:gap-4">
+                <div class="font-medium text-sm text-base-content/75">Penanggung Jawab</div>
+                <div class="md:col-span-3 text-sm">{{ indicator.penanggungJawab }}</div>
+              </div>
             </div>
           </div>
 
-          <div class="grid grid-cols-2 gap-4">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label class="text-sm text-base-content/60">Target adalah Nol</label>
-              <p>{{ indicator.targetIsZero ? 'Ya' : 'Tidak' }}</p>
+              <label class="text-sm font-medium text-base-content/75">Target adalah Nol</label>
+              <p class="text-sm text-base-content/60">{{ indicator.targetIsZero ? 'Ya' : 'Tidak' }}</p>
             </div>
             <div>
-              <label class="text-sm text-base-content/60">Dokumen</label>
-              <a v-if="indicator.documentFile" :href="indicator.documentFile" target="_blank" class="link link-primary">
-                Lihat Dokumen
-              </a>
-              <p v-else>-</p>
+              <label class="text-sm font-medium text-base-content/75">Dokumen Lampiran</label>
+              <p class="text-sm">
+                <a v-if="indicator.documentFile" :href="indicator.documentFile" target="_blank" class="link link-primary inline-flex items-center gap-1">
+                  Lihat Dokumen
+                </a>
+                <span v-else class="text-base-content/60">-</span>
+              </p>
             </div>
           </div>
         </div>
 
         <div class="modal-action">
           <button type="button" @click="closeModal" class="btn">Tutup</button>
-          <!-- <button v-if="indicator" type="button" @click="handleEdit" class="btn btn-primary">
-            <Edit class="w-4 h-4" />
-            Edit
-          </button> -->
         </div>
       </div>
       <form method="dialog" class="modal-backdrop">

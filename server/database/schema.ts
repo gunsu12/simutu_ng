@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, uuid, boolean, numeric } from 'drizzle-orm/pg-core'
+import { pgTable, text, timestamp, uuid, boolean, numeric, integer } from 'drizzle-orm/pg-core'
 
 export const sites = pgTable('sites', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -195,6 +195,87 @@ export const activityLogs = pgTable('activity_logs', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
 })
 
+// Indicator Profiles - 1-to-1 relationship with live indicators for full profile/dictionary
+export const indicatorProfiles = pgTable('indicator_profiles', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  indicatorId: uuid('indicator_id').notNull().references(() => indicators.id, { onDelete: 'cascade' }).unique(),
+  dasarPemikiran: text('dasar_pemikiran'),
+  jenisIndikator: text('jenis_indikator'), // Input, Proses, Output, Outcome
+  satuanPengukuran: text('satuan_pengukuran'),
+  kriteriaInklusi: text('kriteria_inklusi'),
+  kriteriaEksklusi: text('kriteria_eksklusi'),
+  metodePengumpulanData: text('metode_pengumpulan_data'),
+  sumberData: text('sumber_data'),
+  instrumenPengambilanData: text('instrumen_pengambilan_data'),
+  besarSampel: text('besar_sampel'),
+  caraPengambilanSampel: text('cara_pengambilan_sampel'),
+  periodePengumpulanData: text('periode_pengumpulan_data'),
+  penyajianData: text('penyajian_data'),
+  periodeAnalisisDanPelaporanData: text('periode_analisis_dan_pelaporan_data'),
+  penanggungJawab: text('penanggung_jawab'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+})
+
+// Indicator Plans - Planning and selection (scoring) and draft profile fields
+export const indicatorPlans = pgTable('indicator_plans', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  siteId: uuid('site_id').notNull().references(() => sites.id, { onDelete: 'cascade' }),
+  unitId: uuid('unit_id').notNull().references(() => units.id, { onDelete: 'cascade' }),
+  indicatorCategoryId: uuid('indicator_category_id').notNull().references(() => indicatorCategories.id, { onDelete: 'cascade' }),
+  judul: text('judul').notNull(),
+  status: text('status').notNull().default('proposed'), // 'proposed', 'approved', 'rejected'
+  
+  // Scoring Criteria (K1 - K8)
+  k1: integer('k1').notNull().default(1),
+  k2: integer('k2').notNull().default(1),
+  k3: integer('k3').notNull().default(1),
+  k4: integer('k4').notNull().default(1),
+  k5: integer('k5').notNull().default(1),
+  k6: integer('k6').notNull().default(1),
+  k7: integer('k7').notNull().default(1),
+  k8: integer('k8').notNull().default(1),
+  totalScore: integer('total_score').notNull().default(8),
+  
+  // Profile Draft fields
+  dasarPemikiran: text('dasar_pemikiran'),
+  dimensiMutu: text('dimensi_mutu'),
+  tujuan: text('tujuan'),
+  definisiOperasional: text('definisi_operasional'),
+  jenisIndikator: text('jenis_indikator'),
+  satuanPengukuran: text('satuan_pengukuran'),
+  numerator: text('numerator'),
+  denominator: text('denominator'),
+  formula: text('formula'),
+  target: numeric('target'),
+  targetUnit: text('target_unit'),
+  targetKeterangan: text('target_keterangan'),
+  targetIsZero: boolean('target_is_zero').default(false),
+  targetCalculationFormula: text('target_calculation_formula'),
+  kriteriaInklusi: text('kriteria_inklusi'),
+  kriteriaEksklusi: text('kriteria_eksklusi'),
+  metodePengumpulanData: text('metode_pengumpulan_data'),
+  sumberData: text('sumber_data'),
+  instrumenPengambilanData: text('instrumen_pengambilan_data'),
+  besarSampel: text('besar_sampel'),
+  caraPengambilanSampel: text('cara_pengambilan_sampel'),
+  periodePengumpulanData: text('periode_pengumpulan_data'),
+  penyajianData: text('penyajian_data'),
+  periodeAnalisisDanPelaporanData: text('periode_analisis_dan_pelaporan_data'),
+  penanggungJawab: text('penanggung_jawab'),
+  
+  // Metadata & Status logs
+  createdBy: uuid('created_by').notNull().references(() => users.id, { onDelete: 'restrict' }),
+  approvedBy: uuid('approved_by').references(() => users.id, { onDelete: 'set null' }),
+  approvedAt: timestamp('approved_at'),
+  rejectedNotes: text('rejected_notes'),
+  indicatorId: uuid('indicator_id').references(() => indicators.id, { onDelete: 'set null' }),
+  
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  deletedAt: timestamp('deleted_at'),
+})
+
 export type Site = typeof sites.$inferSelect
 export type NewSite = typeof sites.$inferInsert
 
@@ -236,3 +317,9 @@ export type NewIndicatorEntryVerificationLog = typeof indicatorEntryVerification
 
 export type ActivityLog = typeof activityLogs.$inferSelect
 export type NewActivityLog = typeof activityLogs.$inferInsert
+
+export type IndicatorProfile = typeof indicatorProfiles.$inferSelect
+export type NewIndicatorProfile = typeof indicatorProfiles.$inferInsert
+
+export type IndicatorPlan = typeof indicatorPlans.$inferSelect
+export type NewIndicatorPlan = typeof indicatorPlans.$inferInsert

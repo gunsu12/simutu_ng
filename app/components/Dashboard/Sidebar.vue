@@ -79,6 +79,7 @@ const menuItems: MenuItem[] = [
           { name: 'Indikator Mutu', path: '/dashboard/mutu/master/indicators', icon: Award }
         ]
       },
+      { name: 'Perencanaan Indikator', path: '/dashboard/mutu/perencanaan', icon: ClipboardList },
       { name: 'Entri Nilai Mutu Indikator', path: '/dashboard/mutu/nilai-unit', icon: Calculator },
       { name: 'Laporan Kegiatan PDCA', path: '/dashboard/mutu/pdca', icon: ClipboardCheck },
       { name: 'Verifikasi', path: '/dashboard/mutu/verifikasi', icon: ClipboardCheck },
