@@ -80,6 +80,7 @@ const menuItems: MenuItem[] = [
         ]
       },
       { name: 'Perencanaan Indikator', path: '/dashboard/mutu/perencanaan', icon: ClipboardList },
+      { name: 'Risk Register', path: '/dashboard/mutu/risk-register', icon: Shield },
       { name: 'Entri Nilai Mutu Indikator', path: '/dashboard/mutu/nilai-unit', icon: Calculator },
       { name: 'Laporan Kegiatan PDCA', path: '/dashboard/mutu/pdca', icon: ClipboardCheck },
       { name: 'Verifikasi', path: '/dashboard/mutu/verifikasi', icon: ClipboardCheck },
@@ -89,7 +90,8 @@ const menuItems: MenuItem[] = [
         children: [
           { name: 'Mutu Bulanan', path: '/dashboard/mutu/report/bulanan', icon: Calendar },
           { name: 'Mutu Harian', path: '/dashboard/mutu/report/harian', icon: CalendarDays },
-          { name: 'Mutu Tahunan', path: '/dashboard/mutu/report/tahunan', icon: FileText }
+          { name: 'Mutu Tahunan', path: '/dashboard/mutu/report/tahunan', icon: FileText },
+          { name: 'Risk Register', path: '/dashboard/mutu/report/risk-register', icon: Shield }
         ]
       }
     ]

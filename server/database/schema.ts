@@ -323,3 +323,34 @@ export type NewIndicatorProfile = typeof indicatorProfiles.$inferInsert
 
 export type IndicatorPlan = typeof indicatorPlans.$inferSelect
 export type NewIndicatorPlan = typeof indicatorPlans.$inferInsert
+
+export const riskRegisters = pgTable('risk_registers', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  siteId: uuid('site_id').notNull().references(() => sites.id, { onDelete: 'cascade' }),
+  unitId: uuid('unit_id').notNull().references(() => units.id, { onDelete: 'cascade' }),
+  tahun: integer('tahun').notNull(),
+  kategoriRisiko: text('kategori_risiko').notNull(),
+  risiko: text('risiko').notNull(),
+  penyebab: text('penyebab').notNull(),
+  dampak: text('dampak').notNull(),
+  likelihood: integer('likelihood').notNull(),
+  severity: integer('severity').notNull(),
+  riskRating: integer('risk_rating').notNull(),
+  levelRisiko: text('level_risiko').notNull(),
+  mitigasi: text('mitigasi').notNull(),
+  status: text('status').notNull().default('proposed'), // 'proposed', 'approved', 'rejected'
+  
+  // Metadata & Status logs
+  createdBy: uuid('created_by').notNull().references(() => users.id, { onDelete: 'restrict' }),
+  approvedBy: uuid('approved_by').references(() => users.id, { onDelete: 'set null' }),
+  approvedAt: timestamp('approved_at'),
+  rejectedNotes: text('rejected_notes'),
+  
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  deletedAt: timestamp('deleted_at'),
+})
+
+export type RiskRegister = typeof riskRegisters.$inferSelect
+export type NewRiskRegister = typeof riskRegisters.$inferInsert
+
