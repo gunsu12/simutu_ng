@@ -284,7 +284,7 @@ watch(() => user.value, (newUser) => {
 
 <template>
   <aside
-    class="h-full bg-base-200 border-r border-base-300 transition-all duration-300 ease-in-out lg:static lg:translate-x-0"
+    class="h-full bg-base-200 border-r border-base-300 lg:border-r-0 transition-all duration-300 ease-in-out lg:static lg:translate-x-0"
     :class="[
       'fixed inset-y-0 left-0 z-50 w-64',
       isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'

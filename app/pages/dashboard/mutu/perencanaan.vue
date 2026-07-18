@@ -752,17 +752,17 @@ const formatTarget = (p: IndicatorPlan | null) => {
                       {{ (form as any)[item.key] }}
                     </span>
                   </div>
-                  <div class="flex items-center gap-4">
-                    <span class="text-xs text-base-content/40">1</span>
-                    <input 
+                  <div class="form-control w-full">
+                    <select 
                       v-model.number="(form as any)[item.key]" 
-                      type="range" 
-                      min="1" 
-                      max="5" 
-                      step="1" 
-                      class="range range-primary range-xs flex-1" 
-                    />
-                    <span class="text-xs text-base-content/40">5</span>
+                      class="select select-bordered select-sm w-full font-semibold"
+                    >
+                      <option :value="1">1 - Sangat Rendah</option>
+                      <option :value="2">2 - Rendah</option>
+                      <option :value="3">3 - Sedang</option>
+                      <option :value="4">4 - Tinggi</option>
+                      <option :value="5">5 - Sangat Tinggi</option>
+                    </select>
                   </div>
                 </div>
               </div>

@@ -28,8 +28,8 @@ const togglePin = () => {
   <div class="flex h-screen overflow-hidden bg-base-100">
     <!-- Desktop Sidebar Wrapper -->
     <div 
-      class="hidden lg:block transition-all duration-300 ease-in-out overflow-hidden"
-      :class="sidebarPinned || sidebarOpen ? 'w-64' : 'w-0'"
+      class="hidden lg:block transition-all duration-300 ease-in-out overflow-hidden border-r border-base-300"
+      :class="sidebarPinned || sidebarOpen ? 'w-64' : 'w-0 border-r-transparent'"
     >
       <div class="w-64 h-full">
         <DashboardSidebar 
